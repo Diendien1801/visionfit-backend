@@ -1,0 +1,2 @@
+rootProject.name = 'visionfit-backend'
+include 'identity-service'
