@@ -3,6 +3,7 @@ package com.visionfit.identity.service;
 import com.visionfit.identity.domain.User;
 import com.visionfit.identity.dto.AuthResponse;
 import com.visionfit.identity.dto.LoginRequest;
+import com.visionfit.identity.dto.RefreshTokenRequest;
 import com.visionfit.identity.dto.RegisterRequest;
 import com.visionfit.identity.exception.ApiException;
 import com.visionfit.identity.repository.UserRepository;
@@ -22,19 +23,22 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final IdentityUserDetailsService userDetailsService;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             IdentityUserDetailsService userDetailsService,
-            JwtService jwtService
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
@@ -49,11 +53,10 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         User saved = userRepository.save(user);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(saved.getEmail());
-        String token = jwtService.generateToken(userDetails, saved.getId());
-        return AuthResponse.bearer(token, jwtService.getExpirationMs(), saved.getEmail());
+        return issueTokens(saved);
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
         authenticationManager.authenticate(
@@ -61,9 +64,43 @@ public class AuthService {
         );
 
         User user = userDetailsService.loadUserEntityByEmail(email);
+        return issueTokens(user);
+    }
+
+    @Transactional
+    public AuthResponse refresh(RefreshTokenRequest request) {
+        RefreshTokenService.RotationResult rotation = refreshTokenService.rotate(request.refreshToken());
+        return issueTokens(rotation.user(), rotation.refreshToken());
+    }
+
+    @Transactional
+    public void logout(RefreshTokenRequest request) {
+        refreshTokenService.revoke(request.refreshToken());
+    }
+
+    private AuthResponse issueTokens(User user) {
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String token = jwtService.generateToken(userDetails, user.getId());
-        return AuthResponse.bearer(token, jwtService.getExpirationMs(), user.getEmail());
+        String accessToken = jwtService.generateToken(userDetails, user.getId());
+        RefreshTokenService.IssuedRefreshToken refresh = refreshTokenService.issue(user);
+        return AuthResponse.bearer(
+                accessToken,
+                refresh.plainToken(),
+                jwtService.getExpirationMs(),
+                refresh.expiresInMs(),
+                user.getEmail()
+        );
+    }
+
+    private AuthResponse issueTokens(User user, RefreshTokenService.IssuedRefreshToken refresh) {
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String accessToken = jwtService.generateToken(userDetails, user.getId());
+        return AuthResponse.bearer(
+                accessToken,
+                refresh.plainToken(),
+                jwtService.getExpirationMs(),
+                refresh.expiresInMs(),
+                user.getEmail()
+        );
     }
 
     private static String normalizeEmail(String email) {
