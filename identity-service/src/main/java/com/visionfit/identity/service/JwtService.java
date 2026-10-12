@@ -32,7 +32,8 @@ public class JwtService {
                 .claim("uid", userId.toString())
                 .issuedAt(now)
                 .expiration(expiry)
-                .signWith(signingKey)
+                // Pinned so other services know what to verify; left alone, jjwt picks HS256/384/512 from the secret's length.
+                .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
     }
 
