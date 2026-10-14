@@ -45,9 +45,30 @@ services:
       retries: 10
       start_period: 10s
 
+  meal-db:
+    image: postgres:18-alpine
+    container_name: meal-db
+    environment:
+      POSTGRES_DB: ${MEAL_DB_NAME:?missing in .env}
+      POSTGRES_USER: ${MEAL_DB_USER:?missing in .env}
+      POSTGRES_PASSWORD: ${MEAL_DB_PASSWORD:?missing in .env}
+    ports:
+      - "127.0.0.1:${MEAL_DB_PORT:?missing in .env}:5432"
+    volumes:
+      - meal-db-data:/var/lib/postgresql
+    networks:
+      - visionfit-net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "${MEAL_DB_USER}", "-d", "${MEAL_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
 volumes:
   identity-db-data:
   profile-db-data:
+  meal-db-data:
 
 networks:
   visionfit-net:

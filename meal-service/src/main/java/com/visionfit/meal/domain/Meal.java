@@ -1,0 +1,112 @@
+package com.visionfit.meal.domain;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/** A confirmed meal, mirrors the app's `ConfirmedMeal`. Enum names are the wire format, so renaming one breaks the app. */
+@Entity
+@Table(name = "meals")
+public class Meal {
+
+    public enum Type { BREAKFAST, LUNCH, SNACK, DINNER }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    /** The `uid` claim of the owner's access token. */
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
+    @Column(name = "job_id", length = 64)
+    private String jobId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Type type;
+
+    @Column(name = "logged_at", nullable = false)
+    private LocalDateTime loggedAt;
+
+    @Column(name = "photo_url", length = 2048)
+    private String photoUrl;
+
+    @Column(name = "is_edited", nullable = false)
+    private boolean edited;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "meal_id", nullable = false)
+    @OrderBy("position")
+    private List<MealItem> items = new ArrayList<>();
+
+    protected Meal() {
+        // for JPA
+    }
+
+    public Meal(UUID userId, String jobId, Type type, LocalDateTime loggedAt, String photoUrl, boolean edited, List<MealItem> items) {
+        this.userId = userId;
+        this.jobId = jobId;
+        this.type = type;
+        this.loggedAt = loggedAt;
+        this.photoUrl = photoUrl;
+        this.edited = edited;
+        this.items.addAll(items);
+    }
+
+    @PrePersist
+    void stampCreatedAt() {
+        createdAt = Instant.now();
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public LocalDateTime getLoggedAt() {
+        return loggedAt;
+    }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    public boolean isEdited() {
+        return edited;
+    }
+
+    public List<MealItem> getItems() {
+        return items;
+    }
+}

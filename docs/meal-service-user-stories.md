@@ -27,64 +27,64 @@ Server trả dữ liệu thô, app tự tính tổng. App đã có sẵn logic n
 **US-01: Lưu bữa ăn sau khi xem lại kết quả AI**
 Là user, sau khi AI nhận diện món trong ảnh và tôi đã sửa tên/khối lượng cho đúng, tôi muốn lưu bữa ăn vào nhật ký, để nó được tính vào tổng calo trong ngày.
 
-- [ ] Bữa ăn gồm: loại bữa (`BREAKFAST`, `LUNCH`, `SNACK`, `DINNER`), thời điểm ăn, ảnh (có thể không có), danh sách món, cờ "đã chỉnh sửa".
-- [ ] Mỗi món gồm: tên, khối lượng (gram), dinh dưỡng trên 100 g (kcal, protein, carbs, fat), độ tin cậy AI (0–100).
-- [ ] Phải có ít nhất 1 món. Tên món không được trống. Khối lượng phải > 0. Sai thì trả `400`.
-- [ ] Lưu thành công trả về bữa ăn vừa tạo, có `id`.
-- [ ] Nếu user đã sửa kết quả AI thì `isEdited = true`, app hiện nhãn "đã sửa".
+- [x] Bữa ăn gồm: loại bữa (`BREAKFAST`, `LUNCH`, `SNACK`, `DINNER`), thời điểm ăn, ảnh (có thể không có), danh sách món, cờ "đã chỉnh sửa".
+- [x] Mỗi món gồm: tên, khối lượng (gram), dinh dưỡng trên 100 g (kcal, protein, carbs, fat), độ tin cậy AI (0–100).
+- [x] Phải có ít nhất 1 món. Tên món không được trống. Khối lượng phải > 0. Sai thì trả `400`.
+- [x] Lưu thành công trả về bữa ăn vừa tạo, có `id`.
+- [x] Nếu user đã sửa kết quả AI thì `isEdited = true`, app hiện nhãn "đã sửa".
 
 **US-02: Tự nhập món khi AI thất bại**
 Là user, khi AI không nhận ra món (bấm "Tự nhập món ăn"), tôi muốn tự gõ tên và khối lượng món, để vẫn ghi được bữa ăn.
 
-- [ ] Dùng chung API với US-01.
-- [ ] Món tự thêm có `confidence = null`.
-- [ ] Một bữa có thể vừa có món AI nhận ra, vừa có món tự thêm.
+- [x] Dùng chung API với US-01.
+- [x] Món tự thêm có `confidence = null`.
+- [x] Một bữa có thể vừa có món AI nhận ra, vừa có món tự thêm.
 
 **US-03: Không bị lưu trùng bữa ăn**
 Là user, khi mạng chập chờn hoặc tôi lỡ bấm "Lưu" hai lần, tôi không muốn bữa ăn xuất hiện hai lần trong nhật ký.
 
-- [ ] Bữa ăn đến từ một job phân tích thì gửi kèm `jobId`.
-- [ ] Gửi lại cùng `jobId` thì server trả về bữa đã lưu trước đó (`200`), không tạo bữa mới.
-- [ ] Bảo đảm bằng ràng buộc `UNIQUE (user_id, job_id)` trong database, kể cả khi 2 request đến cùng lúc.
+- [x] Bữa ăn đến từ một job phân tích thì gửi kèm `jobId`.
+- [x] Gửi lại cùng `jobId` thì server trả về bữa đã lưu trước đó (`200`), không tạo bữa mới.
+- [x] Bảo đảm bằng ràng buộc `UNIQUE (user_id, job_id)` trong database, kể cả khi 2 request đến cùng lúc.
 
 ### Epic B: Xem nhật ký
 
 **US-04: Xem bữa ăn hôm nay trên Dashboard**
 Là user, tôi muốn thấy hôm nay tôi đã ăn những bữa nào và tổng calo/macro so với mục tiêu, để biết còn được ăn bao nhiêu.
 
-- [ ] Lấy được mọi bữa ăn của một ngày, bữa mới nhất đứng đầu.
-- [ ] Ngày chưa có bữa nào thì trả danh sách rỗng, không trả lỗi.
+- [x] Lấy được mọi bữa ăn của một ngày, bữa mới nhất đứng đầu.
+- [x] Ngày chưa có bữa nào thì trả danh sách rỗng, không trả lỗi.
 
 **US-05: Xem nhật ký của một ngày bất kỳ (History)**
 Là user, tôi muốn chọn một ngày trong 7 ngày gần nhất hoặc chọn ngày trên lịch, để xem lại hôm đó tôi đã ăn gì.
 
-- [ ] Dùng cùng API với US-04, truyền ngày cần xem.
+- [x] Dùng cùng API với US-04, truyền ngày cần xem.
 
 **US-06: Xem dải 7 ngày trong tuần**
 Là user, tôi muốn thấy 7 ngày gần nhất được đánh dấu "trong mục tiêu", "vượt mục tiêu" hoặc "chưa có dữ liệu", để nắm nhanh cả tuần.
 
-- [ ] Lấy được bữa ăn của cả một khoảng ngày trong một lần gọi.
-- [ ] App tự nhóm theo ngày và tự tính trạng thái.
+- [x] Lấy được bữa ăn của cả một khoảng ngày trong một lần gọi.
+- [x] App tự nhóm theo ngày và tự tính trạng thái.
 
 **US-07: Xem chuỗi ngày ghi nhật ký liên tiếp (streak)**
 Là user, tôi muốn thấy mình đã ghi bữa ăn liên tục bao nhiêu ngày, để có động lực duy trì.
 
-- [ ] Dashboard lấy bữa ăn của 60 ngày gần nhất + hôm nay (61 ngày) trong một lần gọi.
-- [ ] Khoảng ngày tối đa của API phải ≥ 61 ngày.
+- [x] Dashboard lấy bữa ăn của 60 ngày gần nhất + hôm nay (61 ngày) trong một lần gọi.
+- [x] Khoảng ngày tối đa của API phải ≥ 61 ngày.
 
 **US-08: Biết còn bao nhiêu calo trước khi lưu bữa**
 Là user, trên màn Review tôi muốn thấy "còn X kcal" trước và sau bữa này, để quyết định có ăn hết hay không.
 
-- [ ] Dùng API của US-04 với ngày của bữa ăn đang xem lại.
+- [x] Dùng API của US-04 với ngày của bữa ăn đang xem lại.
 
 ### Epic C: Riêng tư
 
 **US-09: Chỉ tôi thấy nhật ký của tôi**
 Là user, tôi muốn chỉ mình tôi đọc và ghi được nhật ký ăn uống của mình.
 
-- [ ] Mọi endpoint yêu cầu access token. Không có token hoặc token sai thì trả `401`.
-- [ ] `user_id` luôn lấy từ claim `uid` của token, không bao giờ lấy từ request.
-- [ ] Mọi truy vấn đều lọc theo `user_id`. User A không thể đọc hay ghi đè bữa ăn của user B.
+- [x] Mọi endpoint yêu cầu access token. Không có token hoặc token sai thì trả `401`.
+- [x] `user_id` luôn lấy từ claim `uid` của token, không bao giờ lấy từ request.
+- [x] Mọi truy vấn đều lọc theo `user_id`. User A không thể đọc hay ghi đè bữa ăn của user B.
 
 ---
 
@@ -191,33 +191,14 @@ Base URL: `http://localhost:8083/api/v1/meals`. Mọi request gửi header `Auth
 
 ## 5. Database (`meal-db`, cổng 5435)
 
-```sql
-CREATE TABLE meals (
-    id         UUID PRIMARY KEY,
-    user_id    UUID         NOT NULL,          -- claim `uid`, không có khóa ngoại (users nằm ở identity-db)
-    job_id     VARCHAR(64),
-    type       VARCHAR(10)  NOT NULL CHECK (type IN ('BREAKFAST', 'LUNCH', 'SNACK', 'DINNER')),
-    logged_at  TIMESTAMP    NOT NULL,          -- giờ địa phương của user, không có múi giờ
-    photo_url  VARCHAR(2048),
-    is_edited  BOOLEAN      NOT NULL,
-    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, job_id)                   -- US-03; NULL không đụng nhau nên bữa không có job vẫn lưu được
-);
-CREATE INDEX idx_meals_user_logged_at ON meals (user_id, logged_at);
+Schema đầy đủ nằm ở [`V1__create_meals_tables.sql`](../meal-service/src/main/resources/db/migration/V1__create_meals_tables.sql).
 
-CREATE TABLE meal_items (
-    id             UUID PRIMARY KEY,
-    meal_id        UUID          NOT NULL REFERENCES meals (id) ON DELETE CASCADE,
-    position       INTEGER       NOT NULL,     -- giữ đúng thứ tự món như user thấy
-    name           VARCHAR(100)  NOT NULL,
-    grams          INTEGER       NOT NULL CHECK (grams BETWEEN 1 AND 5000),
-    kcal_per_100g  NUMERIC(6, 2) NOT NULL CHECK (kcal_per_100g BETWEEN 0 AND 900),
-    protein_per_100g NUMERIC(5, 2) NOT NULL CHECK (protein_per_100g BETWEEN 0 AND 100),
-    carbs_per_100g NUMERIC(5, 2) NOT NULL CHECK (carbs_per_100g BETWEEN 0 AND 100),
-    fat_per_100g   NUMERIC(5, 2) NOT NULL CHECK (fat_per_100g BETWEEN 0 AND 100),
-    confidence     INTEGER       CHECK (confidence BETWEEN 0 AND 100)
-);
-```
+| Bảng | Cột chính | Ràng buộc |
+|---|---|---|
+| `meals` | `id`, `user_id` (claim `uid`), `job_id`, `type`, `logged_at` (`TIMESTAMP`, không có múi giờ), `photo_url`, `is_edited`, `created_at` | `UNIQUE (user_id, job_id)` cho US-03; index `(user_id, logged_at)` cho truy vấn theo ngày |
+| `meal_items` | `id`, `meal_id`, `position`, `name`, `grams`, `*_per_100g` (`DOUBLE PRECISION`), `confidence` | `REFERENCES meals ON DELETE CASCADE`; `CHECK` giống quy tắc kiểm tra ở mục 4 |
+
+Không có khóa ngoại tới bảng users vì users nằm ở `identity-db`.
 
 ---
 
@@ -227,8 +208,9 @@ CREATE TABLE meal_items (
 2. **Lọc theo khoảng ngày thay cho phân trang.** Khoảng ngày tối đa 92 ngày, tức khoảng 400 bữa nếu ăn 4 bữa mỗi ngày, đủ nhỏ để trả một lần. Dashboard cần 61 ngày. Thêm phân trang khi có màn "toàn bộ lịch sử".
 3. **Lưu dinh dưỡng trên 100 g + khối lượng, không lưu kcal tổng.** Giống domain của app: đổi khối lượng thì calo tự tính lại, không bao giờ lệch nhau.
 4. **Không lưu tiêu đề bữa ăn.** App tự tạo tiêu đề từ tên món bằng `mealTitleFor(items)`.
-5. **Chống lưu trùng bằng ràng buộc database**, không viết code kiểm tra trong app (US-03).
-6. **Quan hệ 1-nhiều `meals` → `meal_items`**, xóa bữa ăn thì xóa luôn các món (`ON DELETE CASCADE`).
+5. **Chống lưu trùng bằng ràng buộc database** (US-03). Service tìm bữa theo `jobId` trước. Nếu 2 request đến cùng lúc, ràng buộc `UNIQUE` chặn bản thứ hai và service trả về bữa đầu tiên (`200`) thay vì lỗi `500`.
+6. **Quan hệ 1-nhiều `meals` → `meal_items`**, xóa bữa ăn thì xóa luôn các món (`ON DELETE CASCADE`). Món được lấy cùng bữa trong 1 câu SQL (`@EntityGraph`), không bị N+1.
+7. **Dinh dưỡng dùng `DOUBLE PRECISION`**, giống kiểu `Double` của app, không phải chuyển đổi qua lại.
 
 ---
 
