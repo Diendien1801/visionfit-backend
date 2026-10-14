@@ -59,6 +59,17 @@ public class MealItem {
         this.confidence = confidence;
     }
 
+    /** Takes the values of `other`, keeping this row's id and position. */
+    void copyValuesFrom(MealItem other) {
+        this.name = other.name;
+        this.grams = other.grams;
+        this.kcalPer100g = other.kcalPer100g;
+        this.proteinPer100g = other.proteinPer100g;
+        this.carbsPer100g = other.carbsPer100g;
+        this.fatPer100g = other.fatPer100g;
+        this.confidence = other.confidence;
+    }
+
     public UUID getId() {
         return id;
     }

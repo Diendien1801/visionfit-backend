@@ -2,6 +2,7 @@ package com.visionfit.meal.controller;
 
 import com.visionfit.meal.dto.MealDto;
 import com.visionfit.meal.dto.SaveMealRequest;
+import com.visionfit.meal.dto.UpdateMealRequest;
 import com.visionfit.meal.service.MealService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -9,8 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,6 +45,22 @@ public class MealController {
     public ResponseEntity<MealDto> save(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody SaveMealRequest body) {
         MealService.Saved saved = mealService.save(userId(jwt), body);
         return ResponseEntity.status(saved.created() ? HttpStatus.CREATED : HttpStatus.OK).body(saved.meal());
+    }
+
+    /** 404 for a meal that does not exist or is someone else's: the two are not told apart. */
+    @PutMapping("/{id}")
+    public ResponseEntity<MealDto> update(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateMealRequest body
+    ) {
+        return ResponseEntity.of(mealService.update(userId(jwt), id, body));
+    }
+
+    /** 204 once deleted, 404 when there is no such meal (already deleted, or someone else's). */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return mealService.delete(userId(jwt), id) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
     /** Both dates inclusive; `from = to` for a single day. */

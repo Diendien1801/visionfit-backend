@@ -10,8 +10,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Both finders load the items in the same query, so no N+1 and no lazy loading after the transaction. */
+/** Every finder loads the items in the same query, so no N+1 and no lazy loading after the transaction. */
 public interface MealRepository extends JpaRepository<Meal, UUID> {
+
+    /** Empty for another user's meal as well, so nobody learns which meal ids exist. */
+    @EntityGraph(attributePaths = "items")
+    Optional<Meal> findByIdAndUserId(UUID id, UUID userId);
 
     @EntityGraph(attributePaths = "items")
     Optional<Meal> findByUserIdAndJobId(UUID userId, String jobId);

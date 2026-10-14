@@ -30,10 +30,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -192,6 +195,92 @@ class MealApiTest {
         }
         mvc.perform(get("/api/v1/meals?from=2026-07-15&to=2026-10-14").header("Authorization", bearer)) // 92 days
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void updatesTheTypeAndDishesInPlaceAndMarksTheMealEdited() throws Exception {
+        String bearer = bearerFor(UUID.randomUUID());
+        String unedited = meal("job-1", "LUNCH", "2026-10-14T12:05:00").replace("\"isEdited\":true", "\"isEdited\":false");
+        String id = idOf(save(bearer, unedited).andExpect(status().isCreated()));
+
+        // Fewer dishes than before: the extra row is removed.
+        update(bearer, id, changes("DINNER", dish("Phở bò", 400, 94)))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {"id":"%s","jobId":"job-1","type":"DINNER","loggedAt":"2026-10-14T12:05:00","photoUrl":"https://cdn.example/1.jpg",
+                         "isEdited":true,"items":[
+                           {"name":"Phở bò","grams":400,"per100g":{"kcal":110,"proteinG":7,"carbsG":14,"fatG":3},"confidence":94}]}
+                        """.formatted(id)));
+
+        // More dishes than before: rows are rewritten, new ones get ids, the order is kept.
+        update(bearer, id, changes("DINNER", dish("Phở bò", 350, 94), dish("Quẩy", 60, null), dish("Trà đá", 300, null)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(3)))
+                .andExpect(jsonPath("$.items[2].id").isNotEmpty());
+
+        mvc.perform(get("/api/v1/meals?from=2026-10-14&to=2026-10-14").header("Authorization", bearer))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].type").value("DINNER"))
+                .andExpect(jsonPath("$[0].items[*].name").value(contains("Phở bò", "Quẩy", "Trà đá")))
+                .andExpect(jsonPath("$[0].items[0].grams").value(350));
+    }
+
+    @Test
+    void deletesTheMealOnce() throws Exception {
+        String bearer = bearerFor(UUID.randomUUID());
+        String id = idOf(save(bearer, meal("job-1", "LUNCH", "2026-10-14T12:05:00")).andExpect(status().isCreated()));
+
+        mvc.perform(delete("/api/v1/meals/" + id).header("Authorization", bearer)).andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/v1/meals?from=2026-10-14&to=2026-10-14").header("Authorization", bearer)).andExpect(content().json("[]"));
+        mvc.perform(delete("/api/v1/meals/" + id).header("Authorization", bearer)).andExpect(status().isNotFound());
+        // The job is free again: saving it once more creates a new meal.
+        save(bearer, meal("job-1", "LUNCH", "2026-10-14T12:05:00")).andExpect(status().isCreated());
+    }
+
+    @Test
+    void nobodyChangesOrDeletesSomeoneElsesMeal() throws Exception {
+        String owner = bearerFor(UUID.randomUUID());
+        String id = idOf(save(owner, meal("job-1", "LUNCH", "2026-10-14T12:05:00")).andExpect(status().isCreated()));
+        String other = bearerFor(UUID.randomUUID());
+
+        update(other, id, changes("DINNER", dish("Phở bò", 400, 94))).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/meals/" + id).header("Authorization", other)).andExpect(status().isNotFound());
+
+        mvc.perform(get("/api/v1/meals?from=2026-10-14&to=2026-10-14").header("Authorization", owner))
+                .andExpect(jsonPath("$[0].type").value("LUNCH"))
+                .andExpect(jsonPath("$[0].items", hasSize(2)));
+    }
+
+    @Test
+    void rejectsInvalidUpdates() throws Exception {
+        String bearer = bearerFor(UUID.randomUUID());
+        String id = idOf(save(bearer, meal("job-1", "LUNCH", "2026-10-14T12:05:00")).andExpect(status().isCreated()));
+
+        update(bearer, id, changes("DINNER")).andExpect(status().isBadRequest());                          // no dishes
+        update(bearer, id, changes("BRUNCH", dish("Phở bò", 400, 94))).andExpect(status().isBadRequest()); // unknown type
+        update(bearer, id, changes("DINNER", dish("Phở bò", 0, 94))).andExpect(status().isBadRequest());   // 0 g
+        update(bearer, "not-a-uuid", changes("DINNER", dish("Phở bò", 400, 94))).andExpect(status().isBadRequest());
+        update(bearer, UUID.randomUUID().toString(), changes("DINNER", dish("Phở bò", 400, 94))).andExpect(status().isNotFound());
+        mvc.perform(put("/api/v1/meals/" + id).contentType(MediaType.APPLICATION_JSON).content(changes("DINNER", dish("Phở bò", 400, 94))))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/v1/meals/" + id)).andExpect(status().isUnauthorized());
+    }
+
+    private ResultActions update(String bearer, String id, String body) throws Exception {
+        return mvc.perform(put("/api/v1/meals/" + id).header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private static String changes(String type, String... dishes) {
+        return """
+                {"type":"%s","items":[%s]}""".formatted(type, String.join(",", dishes));
+    }
+
+    private static String dish(String name, int grams, Integer confidence) {
+        return """
+                {"name":"%s","grams":%d,"per100g":{"kcal":110,"proteinG":7,"carbsG":14,"fatG":3},"confidence":%s}"""
+                .formatted(name, grams, confidence);
     }
 
     private ResultActions save(String bearer, String body) throws Exception {

@@ -86,14 +86,30 @@ Là user, tôi muốn chỉ mình tôi đọc và ghi được nhật ký ăn u�
 - [x] `user_id` luôn lấy từ claim `uid` của token, không bao giờ lấy từ request.
 - [x] Mọi truy vấn đều lọc theo `user_id`. User A không thể đọc hay ghi đè bữa ăn của user B.
 
+### Epic D: Chi tiết bữa ăn (thêm ngày 2026-10-14)
+
+**US-10: Xem lại và sửa bữa ăn đã lưu**
+Là user, khi bấm vào một bữa đã lưu trên Dashboard hoặc History, tôi muốn xem lại các món và sửa tên, khối lượng, calo, thêm/bớt món hoặc đổi loại bữa, để nhật ký đúng với thực tế.
+
+- [x] Gửi loại bữa + toàn bộ danh sách món mới. Thời điểm ăn, ảnh và `jobId` không đổi.
+- [x] Server đánh dấu `isEdited = true`.
+- [x] Quy tắc kiểm tra món giống US-01. Sai thì trả `400`.
+- [x] Bữa không tồn tại hoặc của người khác thì trả `404` (không phân biệt hai trường hợp).
+
+**US-11: Xóa bữa ăn**
+Là user, tôi muốn xóa một bữa ghi nhầm, để nó không còn được tính vào tổng calo.
+
+- [x] Xóa thành công trả `204`. Xóa lần nữa trả `404`; app coi cả hai là "đã xóa".
+- [x] Xóa luôn các món của bữa (`ON DELETE CASCADE`).
+- [x] Sau khi xóa, `jobId` của bữa đó được dùng lại được.
+
 ---
 
 ## 3. Chưa làm lần này
 
 | Chức năng | Lý do | Làm khi |
 |---|---|---|
-| Sửa bữa ăn đã lưu | App chưa có màn chi tiết bữa ăn. Bấm vào bữa đã xác nhận chỉ mở History | Có màn chi tiết bữa ăn |
-| Xóa bữa ăn | Như trên | Như trên |
+| Đổi thời điểm ăn của bữa đã lưu | App chưa có bộ chọn giờ trên màn chi tiết | Có nhu cầu |
 | Bữa đang phân tích (`PendingMeal`) | Thuộc job AI | Làm `analysis-service` |
 | Upload ảnh | Thuộc `analysis-service`. Meal chỉ lưu URL | Làm `analysis-service` |
 | Xóa bữa ăn khi user bị xóa | Cần event giữa các service (giống Phase C của profile) | Có message broker |
@@ -110,6 +126,31 @@ Base URL: `http://localhost:8083/api/v1/meals`. Mọi request gửi header `Auth
 | `saveMeal(...)` | `POST /api/v1/meals` |
 | `observeDay(date)` | `GET /api/v1/meals?from=date&to=date` |
 | `observeRange(from, to)` | `GET /api/v1/meals?from=...&to=...` |
+| `updateMeal(id, type, items)` | `PUT /api/v1/meals/{id}` |
+| `deleteMeal(id)` | `DELETE /api/v1/meals/{id}` |
+
+### `PUT /api/v1/meals/{id}`: sửa bữa ăn (US-10)
+
+```json
+{
+  "type": "DINNER",
+  "items": [
+    { "name": "Phở bò", "grams": 400, "per100g": { "kcal": 110, "proteinG": 7, "carbsG": 14, "fatG": 3 }, "confidence": 94 }
+  ]
+}
+```
+
+| Kết quả | Khi nào |
+|---|---|
+| `200 OK` + bữa ăn sau khi sửa | Thành công. `isEdited` luôn là `true` |
+| `400 Bad Request` | Sai dữ liệu (cùng quy tắc với `POST`), hoặc `id` không phải UUID |
+| `404 Not Found` | Không có bữa này, hoặc bữa của người khác |
+
+Món được ghi đè theo vị trí, không xóa hết rồi thêm lại: Hibernate chạy `INSERT` trước `DELETE`, nên thêm dòng mới trùng `position` sẽ vi phạm `UNIQUE (meal_id, position)`.
+
+### `DELETE /api/v1/meals/{id}`: xóa bữa ăn (US-11)
+
+`204 No Content` khi đã xóa; `404` khi không có bữa này (đã xóa trước đó, hoặc của người khác).
 
 ### `POST /api/v1/meals`: lưu bữa ăn (US-01, 02, 03)
 

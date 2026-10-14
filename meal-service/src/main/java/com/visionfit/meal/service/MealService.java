@@ -1,10 +1,13 @@
 package com.visionfit.meal.service;
 
+import com.visionfit.meal.domain.Meal;
 import com.visionfit.meal.dto.MealDto;
 import com.visionfit.meal.dto.SaveMealRequest;
+import com.visionfit.meal.dto.UpdateMealRequest;
 import com.visionfit.meal.repository.MealRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -37,6 +40,26 @@ public class MealService {
             // A concurrent save of the same job won the (user_id, job_id) unique constraint.
             return findByJob(userId, request.jobId()).orElseThrow(() -> e);
         }
+    }
+
+    /**
+     * Replaces the type and the dishes of the caller's own meal. Empty when the meal does not
+     * exist or belongs to someone else. Flushed before mapping, so new dishes come back with ids.
+     */
+    @Transactional
+    public Optional<MealDto> update(UUID userId, UUID mealId, UpdateMealRequest request) {
+        return repository.findByIdAndUserId(mealId, userId).map(meal -> {
+            meal.update(request.type(), request.toMealItems());
+            return MealDto.from(repository.saveAndFlush(meal));
+        });
+    }
+
+    /** `false` when there was no such meal of this user, e.g. it was already deleted. */
+    @Transactional
+    public boolean delete(UUID userId, UUID mealId) {
+        Optional<Meal> meal = repository.findByIdAndUserId(mealId, userId);
+        meal.ifPresent(repository::delete);
+        return meal.isPresent();
     }
 
     /** Meals logged from the start of `from` to the end of `to`, newest first. */

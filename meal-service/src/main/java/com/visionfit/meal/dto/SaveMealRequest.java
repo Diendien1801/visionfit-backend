@@ -33,13 +33,17 @@ public record SaveMealRequest(
     }
 
     public Meal toMeal(UUID userId) {
-        List<MealItem> mealItems = IntStream.range(0, items.size())
+        return new Meal(userId, jobId, type, loggedAt, photoUrl, isEdited, toMealItems(items));
+    }
+
+    /** Positions follow the list order, which is the order the user sees the dishes in. */
+    static List<MealItem> toMealItems(List<Item> items) {
+        return IntStream.range(0, items.size())
                 .mapToObj(i -> {
                     Item item = items.get(i);
                     Per100g n = item.per100g();
                     return new MealItem(i, item.name().trim(), item.grams(), n.kcal(), n.proteinG(), n.carbsG(), n.fatG(), item.confidence());
                 })
                 .toList();
-        return new Meal(userId, jobId, type, loggedAt, photoUrl, isEdited, mealItems);
     }
 }

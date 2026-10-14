@@ -78,6 +78,26 @@ public class Meal {
         createdAt = Instant.now();
     }
 
+    /**
+     * The user changed the meal after saving it. Dishes are rewritten in place by position rather
+     * than cleared and re-added: Hibernate inserts before it deletes, so fresh rows would hit
+     * UNIQUE (meal_id, position) while the old ones still exist.
+     */
+    public void update(Type type, List<MealItem> replacement) {
+        this.type = type;
+        this.edited = true;
+        for (int i = 0; i < replacement.size(); i++) {
+            if (i < items.size()) {
+                items.get(i).copyValuesFrom(replacement.get(i));
+            } else {
+                items.add(replacement.get(i));
+            }
+        }
+        while (items.size() > replacement.size()) {
+            items.remove(items.size() - 1);
+        }
+    }
+
     public UUID getId() {
         return id;
     }
