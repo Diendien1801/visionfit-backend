@@ -5,14 +5,16 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import org.springframework.data.domain.Persistable;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -20,16 +22,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** A confirmed meal, mirrors the app's `ConfirmedMeal`. Enum names are the wire format, so renaming one breaks the app. */
+/**
+ * A confirmed meal, mirrors the app's `ConfirmedMeal`. Enum names are the wire format, so renaming one breaks the app.
+ *
+ * Implements {@link Persistable} because the id is assigned, not generated: without it Spring Data
+ * would see an id, take the meal for an existing row and `merge` it, a needless SELECT before the INSERT.
+ */
 @Entity
 @Table(name = "meals")
-public class Meal {
+public class Meal implements Persistable<UUID> {
 
     public enum Type { BREAKFAST, LUNCH, SNACK, DINNER }
 
+    /** Created by the app before the first save and sent again on every retry: the key that stops duplicates. */
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    /** `true` until the meal is stored or loaded. */
+    @Transient
+    private boolean isNew = true;
 
     /** The `uid` claim of the owner's access token. */
     @Column(name = "user_id", nullable = false)
@@ -63,7 +74,8 @@ public class Meal {
         // for JPA
     }
 
-    public Meal(UUID userId, String jobId, Type type, LocalDateTime loggedAt, String photoUrl, boolean edited, List<MealItem> items) {
+    public Meal(UUID id, UUID userId, String jobId, Type type, LocalDateTime loggedAt, String photoUrl, boolean edited, List<MealItem> items) {
+        this.id = id;
         this.userId = userId;
         this.jobId = jobId;
         this.type = type;
@@ -76,6 +88,17 @@ public class Meal {
     @PrePersist
     void stampCreatedAt() {
         createdAt = Instant.now();
+    }
+
+    @PostPersist
+    @PostLoad
+    void markStored() {
+        isNew = false;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
     }
 
     /**
@@ -98,6 +121,11 @@ public class Meal {
         }
     }
 
+    public Nutrition nutrition() {
+        return Nutrition.sum(items, MealItem::nutrition);
+    }
+
+    @Override
     public UUID getId() {
         return id;
     }

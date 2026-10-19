@@ -1,7 +1,9 @@
 package com.visionfit.meal.controller;
 
+import com.visionfit.meal.dto.DayDto;
 import com.visionfit.meal.dto.MealDto;
 import com.visionfit.meal.dto.SaveMealRequest;
+import com.visionfit.meal.dto.StreakDto;
 import com.visionfit.meal.dto.UpdateMealRequest;
 import com.visionfit.meal.service.MealService;
 import jakarta.validation.Valid;
@@ -63,9 +65,9 @@ public class MealController {
         return mealService.delete(userId(jwt), id) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
-    /** Both dates inclusive; `from = to` for a single day. */
+    /** Every day of the range with its totals and meals. Both dates inclusive; `from = to` for a single day. */
     @GetMapping
-    public List<MealDto> list(
+    public List<DayDto> days(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
@@ -73,7 +75,19 @@ public class MealController {
         if (from.isAfter(to) || ChronoUnit.DAYS.between(from, to) >= MAX_RANGE_DAYS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from..to must span 1 to " + MAX_RANGE_DAYS + " days");
         }
-        return mealService.list(userId(jwt), from, to);
+        return mealService.days(userId(jwt), from, to);
+    }
+
+    /**
+     * `today` comes from the app: meal times are the user's wall-clock time, so only the app knows
+     * which day "today" is for this user.
+     */
+    @GetMapping("/streak")
+    public StreakDto streak(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate today
+    ) {
+        return mealService.streak(userId(jwt), today);
     }
 
     /** Safe to parse: SecurityConfig rejects tokens whose `uid` is not a UUID. */

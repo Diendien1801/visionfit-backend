@@ -13,6 +13,10 @@ import java.util.UUID;
 /** Every finder loads the items in the same query, so no N+1 and no lazy loading after the transaction. */
 public interface MealRepository extends JpaRepository<Meal, UUID> {
 
+    /** Any user's meal: saving checks who owns an id the app sent before using it. */
+    @EntityGraph(attributePaths = "items")
+    Optional<Meal> findWithItemsById(UUID id);
+
     /** Empty for another user's meal as well, so nobody learns which meal ids exist. */
     @EntityGraph(attributePaths = "items")
     Optional<Meal> findByIdAndUserId(UUID id, UUID userId);
@@ -24,4 +28,8 @@ public interface MealRepository extends JpaRepository<Meal, UUID> {
     @EntityGraph(attributePaths = "items")
     @Query("select m from Meal m where m.userId = :userId and m.loggedAt >= :start and m.loggedAt < :end order by m.loggedAt desc")
     List<Meal> findLoggedBetween(UUID userId, LocalDateTime start, LocalDateTime end);
+
+    /** Only the times, newest first: the streak needs which days have a meal, not the meals. */
+    @Query("select m.loggedAt from Meal m where m.userId = :userId and m.loggedAt >= :start and m.loggedAt < :end order by m.loggedAt desc")
+    List<LocalDateTime> findLoggedTimesBetween(UUID userId, LocalDateTime start, LocalDateTime end);
 }

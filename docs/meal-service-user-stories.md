@@ -13,10 +13,10 @@
 |---|---|
 | Bữa ăn đã xác nhận + các món | Bữa đang phân tích (`PendingMeal`), job AI → `analysis-service` (sau) |
 | Đường dẫn ảnh của bữa (chỉ lưu URL) | Upload ảnh → `analysis-service` |
-| Lọc bữa ăn theo ngày / khoảng ngày | Mục tiêu kcal → app tính từ profile |
-| | Tổng kcal/macro theo ngày, streak → app tính (`SummarizeDayUseCase`, `CalculateStreakUseCase`) |
+| Lọc bữa ăn theo ngày / khoảng ngày | Mục tiêu kcal → app tính từ profile (cho tới khi profile-service tính) |
+| **Tổng kcal/macro của từng bữa và từng ngày, streak** (sửa ngày 2026-10-15) | So tổng đã ăn với mục tiêu ("còn lại", "vượt mục tiêu") → app, vì mục tiêu chưa ở server |
 
-Server trả dữ liệu thô, app tự tính tổng. App đã có sẵn logic này, server không cần làm lại.
+Server là nơi duy nhất tính các con số dinh dưỡng; app chỉ hiển thị. Mọi client sau này (web, service gửi thông báo) dùng cùng một kết quả, không ai phải chép lại công thức.
 
 ---
 
@@ -43,9 +43,10 @@ Là user, khi AI không nhận ra món (bấm "Tự nhập món ăn"), tôi mu�
 **US-03: Không bị lưu trùng bữa ăn**
 Là user, khi mạng chập chờn hoặc tôi lỡ bấm "Lưu" hai lần, tôi không muốn bữa ăn xuất hiện hai lần trong nhật ký.
 
-- [x] Bữa ăn đến từ một job phân tích thì gửi kèm `jobId`.
-- [x] Gửi lại cùng `jobId` thì server trả về bữa đã lưu trước đó (`200`), không tạo bữa mới.
-- [x] Bảo đảm bằng ràng buộc `UNIQUE (user_id, job_id)` trong database, kể cả khi 2 request đến cùng lúc.
+- [x] App tạo `id` (UUID) cho bữa ăn **một lần** khi mở màn xem lại, và gửi lại đúng `id` đó ở mọi lần bấm "Lưu". Gửi lại cùng `id` thì server trả về bữa đã lưu (`200`), kể cả bữa không có ảnh (`jobId = null`). (Sửa ngày 2026-10-15: trước đây chỉ có `jobId`, mà `NULL ≠ NULL` nên bữa không có ảnh bị lưu trùng.)
+- [x] `id` do client gửi nên không được tin: `id` đã thuộc về user khác thì trả `409`, không trả và không ghi đè bữa của người đó.
+- [x] Luật "một ảnh là một bữa" vẫn giữ: cùng `jobId` với `id` khác (app khởi động lại, tạo `id` mới) vẫn trả về bữa đầu tiên.
+- [x] Bảo đảm bằng khóa chính và `UNIQUE (user_id, job_id)` trong database, kể cả khi nhiều request đến cùng lúc.
 
 ### Epic B: Xem nhật ký
 
@@ -53,7 +54,8 @@ Là user, khi mạng chập chờn hoặc tôi lỡ bấm "Lưu" hai lần, tôi
 Là user, tôi muốn thấy hôm nay tôi đã ăn những bữa nào và tổng calo/macro so với mục tiêu, để biết còn được ăn bao nhiêu.
 
 - [x] Lấy được mọi bữa ăn của một ngày, bữa mới nhất đứng đầu.
-- [x] Ngày chưa có bữa nào thì trả danh sách rỗng, không trả lỗi.
+- [x] Server trả kèm tổng kcal/protein/carbs/fat của ngày và của từng bữa.
+- [x] Ngày chưa có bữa nào vẫn được trả về, tổng bằng 0, không trả lỗi.
 
 **US-05: Xem nhật ký của một ngày bất kỳ (History)**
 Là user, tôi muốn chọn một ngày trong 7 ngày gần nhất hoặc chọn ngày trên lịch, để xem lại hôm đó tôi đã ăn gì.
@@ -63,14 +65,14 @@ Là user, tôi muốn chọn một ngày trong 7 ngày gần nhất hoặc chọ
 **US-06: Xem dải 7 ngày trong tuần**
 Là user, tôi muốn thấy 7 ngày gần nhất được đánh dấu "trong mục tiêu", "vượt mục tiêu" hoặc "chưa có dữ liệu", để nắm nhanh cả tuần.
 
-- [x] Lấy được bữa ăn của cả một khoảng ngày trong một lần gọi.
-- [x] App tự nhóm theo ngày và tự tính trạng thái.
+- [x] Lấy được cả một khoảng ngày trong một lần gọi, server đã nhóm theo ngày và tính tổng từng ngày.
+- [x] App chỉ so tổng của ngày với mục tiêu để tô màu (mục tiêu vẫn ở app).
 
 **US-07: Xem chuỗi ngày ghi nhật ký liên tiếp (streak)**
 Là user, tôi muốn thấy mình đã ghi bữa ăn liên tục bao nhiêu ngày, để có động lực duy trì.
 
-- [x] Dashboard lấy bữa ăn của 60 ngày gần nhất + hôm nay (61 ngày) trong một lần gọi.
-- [x] Khoảng ngày tối đa của API phải ≥ 61 ngày.
+- [x] Server tính: số ngày liên tiếp có ít nhất 1 bữa, đếm lùi từ hôm qua (hôm nay chưa xong nên không làm đứt hay kéo dài chuỗi). Xét tối đa 366 ngày.
+- [x] App gửi `today`, vì `loggedAt` là giờ địa phương của user nên chỉ app biết "hôm nay" là ngày nào.
 
 **US-08: Biết còn bao nhiêu calo trước khi lưu bữa**
 Là user, trên màn Review tôi muốn thấy "còn X kcal" trước và sau bữa này, để quyết định có ăn hết hay không.
@@ -113,7 +115,7 @@ Là user, tôi muốn xóa một bữa ghi nhầm, để nó không còn đượ
 | Bữa đang phân tích (`PendingMeal`) | Thuộc job AI | Làm `analysis-service` |
 | Upload ảnh | Thuộc `analysis-service`. Meal chỉ lưu URL | Làm `analysis-service` |
 | Xóa bữa ăn khi user bị xóa | Cần event giữa các service (giống Phase C của profile) | Có message broker |
-| Tính tổng theo ngày ở server | App đã tính rồi | Có client thứ 2 cần |
+| "Còn lại bao nhiêu kcal", trạng thái ngày ở server | Cần mục tiêu kcal, mà mục tiêu đang được app tính từ profile | profile-service tính mục tiêu |
 
 ---
 
@@ -126,6 +128,7 @@ Base URL: `http://localhost:8083/api/v1/meals`. Mọi request gửi header `Auth
 | `saveMeal(...)` | `POST /api/v1/meals` |
 | `observeDay(date)` | `GET /api/v1/meals?from=date&to=date` |
 | `observeRange(from, to)` | `GET /api/v1/meals?from=...&to=...` |
+| `observeStreak(today)` | `GET /api/v1/meals/streak?today=...` |
 | `updateMeal(id, type, items)` | `PUT /api/v1/meals/{id}` |
 | `deleteMeal(id)` | `DELETE /api/v1/meals/{id}` |
 
@@ -156,6 +159,7 @@ Món được ghi đè theo vị trí, không xóa hết rồi thêm lại: Hibe
 
 ```json
 {
+  "id": "5b0c9a3e-1d2f-4c6b-9a8e-2f1e0d3c4b5a",
   "jobId": "job-7f3a",
   "type": "LUNCH",
   "loggedAt": "2026-10-14T12:05:00",
@@ -181,37 +185,54 @@ Món được ghi đè theo vị trí, không xóa hết rồi thêm lại: Hibe
 | Kết quả | Khi nào |
 |---|---|
 | `201 Created` + bữa ăn | Bữa mới |
-| `200 OK` + bữa ăn đã có | Đã có bữa với cùng `jobId` (US-03) |
+| `200 OK` + bữa ăn đã có | Đã có bữa với cùng `id`, hoặc cùng `jobId` (US-03) |
+| `409 Conflict` | `id` đã thuộc về bữa của user khác |
 | `400 Bad Request` | Sai dữ liệu (xem quy tắc kiểm tra bên dưới) |
 | `401 Unauthorized` | Thiếu token hoặc token sai |
 
 ### `GET /api/v1/meals?from=2026-10-08&to=2026-10-14`: xem nhật ký (US-04 → 08)
 
 - `from`, `to` có dạng `YYYY-MM-DD`, tính cả 2 đầu. Xem 1 ngày thì truyền `from = to`.
-- Trả về mảng bữa ăn trong khoảng ngày, **mới nhất trước** (theo `loggedAt`). App tự nhóm theo ngày và tự thêm ngày rỗng.
+- Trả về **mọi ngày** trong khoảng, cũ nhất trước, kể cả ngày không có bữa (tổng bằng 0). Mỗi ngày có tổng do server tính và các bữa **mới nhất trước**; mỗi bữa cũng có tổng của nó.
+- Kcal làm tròn **từng món** (`grams × kcal/100g`), rồi cộng lên bữa và ngày, nên tổng luôn bằng tổng các món user nhìn thấy. Macro không làm tròn.
 - `400` khi `from > to` hoặc khoảng ngày dài hơn 92 ngày.
 
 ```json
 [
   {
-    "id": "5b0c9a3e-1d2f-4c6b-9a8e-2f1e0d3c4b5a",
-    "jobId": "job-7f3a",
-    "type": "LUNCH",
-    "loggedAt": "2026-10-14T12:05:00",
-    "photoUrl": "https://cdn.example/meals/7f3a.jpg",
-    "isEdited": true,
-    "items": [
+    "date": "2026-10-14",
+    "kcal": 673, "proteinG": 35.55, "carbsG": 74.8, "fatG": 24.75,
+    "mealCount": 1,
+    "meals": [
       {
-        "id": "a1b2c3d4-0000-4000-8000-000000000001",
-        "name": "Cơm tấm",
-        "grams": 250,
-        "per100g": { "kcal": 130, "proteinG": 2.7, "carbsG": 28, "fatG": 0.3 },
-        "confidence": 94
+        "id": "5b0c9a3e-1d2f-4c6b-9a8e-2f1e0d3c4b5a",
+        "jobId": "job-7f3a",
+        "type": "LUNCH",
+        "loggedAt": "2026-10-14T12:05:00",
+        "photoUrl": "https://cdn.example/meals/7f3a.jpg",
+        "isEdited": true,
+        "kcal": 673, "proteinG": 35.55, "carbsG": 74.8, "fatG": 24.75,
+        "items": [
+          { "id": "a1b2…", "name": "Cơm tấm", "grams": 250,
+            "per100g": { "kcal": 130, "proteinG": 2.7, "carbsG": 28, "fatG": 0.3 }, "confidence": 94 },
+          { "id": "c3d4…", "name": "Sườn nướng", "grams": 120,
+            "per100g": { "kcal": 290, "proteinG": 24, "carbsG": 4, "fatG": 20 }, "confidence": null }
+        ]
       }
     ]
   }
 ]
 ```
+
+`POST` và `PUT` trả về một bữa có cùng dạng (kèm tổng của bữa).
+
+### `GET /api/v1/meals/streak?today=2026-10-15`: chuỗi ngày (US-07)
+
+```json
+{ "days": 6 }
+```
+
+`400` khi thiếu `today` hoặc sai định dạng.
 
 ### Quy tắc kiểm tra dữ liệu (cả DTO lẫn `CHECK` trong database)
 
@@ -219,6 +240,7 @@ Món được ghi đè theo vị trí, không xóa hết rồi thêm lại: Hibe
 |---|---|
 | `type` | Một trong `BREAKFAST`, `LUNCH`, `SNACK`, `DINNER` |
 | `loggedAt` | Bắt buộc, dạng `YYYY-MM-DDTHH:mm:ss` |
+| `id` | Bắt buộc, UUID do app tạo |
 | `jobId` | Không bắt buộc, tối đa 64 ký tự |
 | `photoUrl` | Không bắt buộc, tối đa 2048 ký tự |
 | `items` | 1 → 30 món |
@@ -246,7 +268,7 @@ Không có khóa ngoại tới bảng users vì users nằm ở `identity-db`.
 ## 6. Quyết định thiết kế
 
 1. **`loggedAt` là giờ địa phương, không có múi giờ.** App dùng `LocalDateTime`. Lọc theo ngày bằng `logged_at >= from 00:00 AND logged_at < (to + 1) 00:00`. Giới hạn: user đổi múi giờ thì bữa ăn có thể nằm sai ngày. Thêm cột múi giờ khi cần.
-2. **Lọc theo khoảng ngày thay cho phân trang.** Khoảng ngày tối đa 92 ngày, tức khoảng 400 bữa nếu ăn 4 bữa mỗi ngày, đủ nhỏ để trả một lần. Dashboard cần 61 ngày. Thêm phân trang khi có màn "toàn bộ lịch sử".
+2. **Lọc theo khoảng ngày thay cho phân trang.** Khoảng ngày tối đa 92 ngày, tức khoảng 400 bữa nếu ăn 4 bữa mỗi ngày, đủ nhỏ để trả một lần. Dashboard chỉ cần 7 ngày (streak có endpoint riêng). Thêm phân trang khi có màn "toàn bộ lịch sử".
 3. **Lưu dinh dưỡng trên 100 g + khối lượng, không lưu kcal tổng.** Giống domain của app: đổi khối lượng thì calo tự tính lại, không bao giờ lệch nhau.
 4. **Không lưu tiêu đề bữa ăn.** App tự tạo tiêu đề từ tên món bằng `mealTitleFor(items)`.
 5. **Chống lưu trùng bằng ràng buộc database** (US-03). Service tìm bữa theo `jobId` trước. Nếu 2 request đến cùng lúc, ràng buộc `UNIQUE` chặn bản thứ hai và service trả về bữa đầu tiên (`200`) thay vì lỗi `500`.

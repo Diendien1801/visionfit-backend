@@ -70,6 +70,17 @@ public class MealItem {
         this.confidence = other.confidence;
     }
 
+    /** Values per 100 g scaled to the weight eaten; calories rounded to a whole number. */
+    public Nutrition nutrition() {
+        double factor = grams / 100.0;
+        return new Nutrition(
+                (int) Math.round(kcalPer100g * factor),
+                proteinPer100g * factor,
+                carbsPer100g * factor,
+                fatPer100g * factor
+        );
+    }
+
     public UUID getId() {
         return id;
     }

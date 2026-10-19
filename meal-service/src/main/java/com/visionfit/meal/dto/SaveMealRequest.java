@@ -16,6 +16,8 @@ import java.util.stream.IntStream;
 
 /** Body of `POST /api/v1/meals`. Limits match the CHECKs in V1__create_meals_tables.sql. */
 public record SaveMealRequest(
+        /** Made by the app once per meal and resent unchanged on every retry, so a retry finds the first save. */
+        @NotNull UUID id,
         /** `null` for a meal that did not come from an analysis job; never empty, or every such meal would share it. */
         @Size(min = 1, max = 64) String jobId,
         @NotNull Meal.Type type,
@@ -33,7 +35,7 @@ public record SaveMealRequest(
     }
 
     public Meal toMeal(UUID userId) {
-        return new Meal(userId, jobId, type, loggedAt, photoUrl, isEdited, toMealItems(items));
+        return new Meal(id, userId, jobId, type, loggedAt, photoUrl, isEdited, toMealItems(items));
     }
 
     /** Positions follow the list order, which is the order the user sees the dishes in. */
