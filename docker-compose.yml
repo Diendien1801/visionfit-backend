@@ -65,10 +65,31 @@ services:
       retries: 10
       start_period: 10s
 
+  analysis-db:
+    image: postgres:18-alpine
+    container_name: analysis-db
+    environment:
+      POSTGRES_DB: ${ANALYSIS_DB_NAME:?missing in .env}
+      POSTGRES_USER: ${ANALYSIS_DB_USER:?missing in .env}
+      POSTGRES_PASSWORD: ${ANALYSIS_DB_PASSWORD:?missing in .env}
+    ports:
+      - "127.0.0.1:${ANALYSIS_DB_PORT:?missing in .env}:5432"
+    volumes:
+      - analysis-db-data:/var/lib/postgresql
+    networks:
+      - visionfit-net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "${ANALYSIS_DB_USER}", "-d", "${ANALYSIS_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
 volumes:
   identity-db-data:
   profile-db-data:
   meal-db-data:
+  analysis-db-data:
 
 networks:
   visionfit-net:
