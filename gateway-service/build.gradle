@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+group = 'com.visionfit'
+version = '0.0.1-SNAPSHOT'
+description = 'gateway-service'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        // ponytail: 2025.1.x targets Boot 4.0 but runs on 4.1 (GatewayRoutingTest passes); move to 2026.0.x once it is GA.
+        mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.3'
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Servlet flavour, same stack as the services behind it.
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webmvc'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
