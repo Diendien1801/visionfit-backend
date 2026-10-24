@@ -1,0 +1,169 @@
+# The whole backend on one server, behind a Cloudflare Tunnel. No port is published to the host:
+#   phone -> Cloudflare -> cloudflared -> nginx -> gateway -> identity/profile/meal/analysis -> postgres
+# Needs a .env next to this file (see .env.example). Run:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Smoke test on a laptop without a tunnel (everything but cloudflared):
+#   docker compose -f docker-compose.prod.yml up -d --build nginx
+
+name: visionfit-prod
+
+x-app: &app
+  restart: unless-stopped
+  networks: [backend]
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+  # Boot 4 containers: the JVM sizes its heap from the container limit (-XX:MaxRAMPercentage).
+  environment: &app-env
+    JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError
+  deploy:
+    resources:
+      limits:
+        memory: 512m
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing in .env}
+      IDENTITY_DB_NAME: ${IDENTITY_DB_NAME:?missing in .env}
+      IDENTITY_DB_USER: ${IDENTITY_DB_USER:?missing in .env}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?missing in .env}
+      PROFILE_DB_NAME: ${PROFILE_DB_NAME:?missing in .env}
+      PROFILE_DB_USER: ${PROFILE_DB_USER:?missing in .env}
+      PROFILE_DB_PASSWORD: ${PROFILE_DB_PASSWORD:?missing in .env}
+      MEAL_DB_NAME: ${MEAL_DB_NAME:?missing in .env}
+      MEAL_DB_USER: ${MEAL_DB_USER:?missing in .env}
+      MEAL_DB_PASSWORD: ${MEAL_DB_PASSWORD:?missing in .env}
+      ANALYSIS_DB_NAME: ${ANALYSIS_DB_NAME:?missing in .env}
+      ANALYSIS_DB_USER: ${ANALYSIS_DB_USER:?missing in .env}
+      ANALYSIS_DB_PASSWORD: ${ANALYSIS_DB_PASSWORD:?missing in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      # Runs on the first start only, when the volume is empty.
+      - ./infra/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  identity-service:
+    <<: *app
+    build: { context: ., args: { SERVICE: identity-service } }
+    image: visionfit/identity-service
+    environment:
+      <<: *app-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IDENTITY_DB_NAME}
+      IDENTITY_DB_USER: ${IDENTITY_DB_USER}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?missing in .env}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  profile-service:
+    <<: *app
+    build: { context: ., args: { SERVICE: profile-service } }
+    image: visionfit/profile-service
+    environment:
+      <<: *app-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PROFILE_DB_NAME}
+      PROFILE_DB_USER: ${PROFILE_DB_USER}
+      PROFILE_DB_PASSWORD: ${PROFILE_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  meal-service:
+    <<: *app
+    build: { context: ., args: { SERVICE: meal-service } }
+    image: visionfit/meal-service
+    environment:
+      <<: *app-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${MEAL_DB_NAME}
+      MEAL_DB_USER: ${MEAL_DB_USER}
+      MEAL_DB_PASSWORD: ${MEAL_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  analysis-service:
+    <<: *app
+    build: { context: ., args: { SERVICE: analysis-service } }
+    image: visionfit/analysis-service
+    environment:
+      <<: *app-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${ANALYSIS_DB_NAME}
+      ANALYSIS_DB_USER: ${ANALYSIS_DB_USER}
+      ANALYSIS_DB_PASSWORD: ${ANALYSIS_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    # Holds a 5 MB photo as base64 per analysis, plus the Claude SDK.
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  gateway:
+    <<: *app
+    build: { context: ., args: { SERVICE: gateway-service } }
+    image: visionfit/gateway-service
+    environment:
+      <<: *app-env
+      GATEWAY_PORT: "8080"
+      IDENTITY_SERVICE_HOST: identity-service
+      PROFILE_SERVICE_HOST: profile-service
+      MEAL_SERVICE_HOST: meal-service
+      ANALYSIS_SERVICE_HOST: analysis-service
+      # X-Forwarded-For is believed only from nginx, which sits on this network.
+      GATEWAY_TRUSTED_PROXIES: 172.30.0.0/24
+    depends_on: [identity-service, profile-service, meal-service, analysis-service]
+
+  nginx:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    networks: [backend]
+    volumes:
+      - ./infra/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+    depends_on: [gateway]
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.1
+    restart: unless-stopped
+    networks: [backend]
+    command: tunnel --no-autoupdate run
+    environment:
+      # From the Cloudflare dashboard: Zero Trust > Networks > Tunnels > your tunnel > token.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [nginx]
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+volumes:
+  postgres-data:
+
+networks:
+  backend:
+    # Fixed so nginx and the gateway can name the range they trust forwarded headers from.
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

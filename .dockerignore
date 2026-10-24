@@ -1,0 +1,24 @@
+# What `COPY . .` in the Dockerfile must never send into an image.
+
+# Secrets: anyone who pulls the image could read them. Runtime values come from --env-file / compose instead.
+.env
+.env.*
+!.env.example
+secrets/
+
+# Built output and caches: large, and rebuilt inside the image anyway.
+.gradle/
+**/build/
+!**/src/**/build/
+
+# Not needed to build or run the apps.
+.git/
+.idea/
+*.iml
+docs/
+infra/
+docker-compose*.yml
+Dockerfile
+.dockerignore
+**/*.log
+lab-*.bin

@@ -1,0 +1,4 @@
+# Scripts and configs are read inside Linux containers: never let Windows turn them into CRLF.
+*.sh text eol=lf
+*.conf text eol=lf
+gradlew text eol=lf
