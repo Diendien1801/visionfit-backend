@@ -13,13 +13,14 @@ x-app: &app
   logging:
     driver: json-file
     options: { max-size: "20m", max-file: "5" }
-  # Boot 4 containers: the JVM sizes its heap from the container limit (-XX:MaxRAMPercentage).
+  # Sized for a 2 GB server with 2 GB swap: the JVM takes 60% of its container limit as heap, the
+  # serial collector keeps the rest small, and an OOM restarts the container instead of hanging it.
   environment: &app-env
-    JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError
+    JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError
   deploy:
     resources:
       limits:
-        memory: 512m
+        memory: 400m
 
 services:
   postgres:
@@ -57,7 +58,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 256m
 
   identity-service:
     <<: *app
@@ -115,7 +116,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768m
+          memory: 512m
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -132,6 +133,11 @@ services:
       ANALYSIS_SERVICE_HOST: analysis-service
       # X-Forwarded-For is believed only from nginx, which sits on this network.
       GATEWAY_TRUSTED_PROXIES: 172.30.0.0/24
+    # No database, no JPA: the smallest of the five.
+    deploy:
+      resources:
+        limits:
+          memory: 320m
     depends_on: [identity-service, profile-service, meal-service, analysis-service]
 
   nginx:
