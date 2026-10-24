@@ -44,5 +44,5 @@ cat <<'EOF'
 
 Done. Next:
   1. On the server:  cd ~/visionfit-backend && cp .env.example .env && nano .env   (passwords, JWT secret, tunnel token)
-  2. On the laptop:  .\infra\ec2\deploy.ps1 -Server <public IP>
+  2. On the server:  ./infra/ec2/deploy.sh   (builds the jars in a JDK container, then starts compose)
 EOF

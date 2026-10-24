@@ -22,7 +22,7 @@ Tìm dịch vụ **EC2** → *Launch instance*:
 |---|---|
 | Name | `visionfit-backend` |
 | AMI (hệ điều hành) | **Ubuntu Server 24.04 LTS**, kiến trúc **64-bit (Arm)** |
-| Instance type | **t4g.medium** (2 vCPU, 4 GB RAM). Nhỏ hơn không đủ cho 5 JVM |
+| Instance type | **t4g.small** (2 vCPU, 2 GB RAM): loại lớn nhất Free plan cho phép. Script cài máy tạo thêm 2 GB swap |
 | Key pair | *Create new key pair* → tên `visionfit`, loại **ED25519**, định dạng **.pem** → file tải về **giữ cẩn thận**, mất là không vào được máy |
 | Network settings → Security group | *Create security group*: **chỉ một luật**: `SSH`, source **My IP**. **Không** tick *Allow HTTP/HTTPS* |
 | Storage | **30 GB gp3** |
@@ -81,12 +81,12 @@ Trong `nano`: `Ctrl+O` rồi `Enter` để lưu, `Ctrl+X` để thoát. Khoá fi
 chmod 600 .env
 ```
 
-## Bước 6. Chạy (15 phút, chủ yếu là chờ build)
+## Bước 6. Chạy (10 phút, chủ yếu là chờ build)
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+./infra/ec2/deploy.sh
 ```
-Lần đầu build 5 image mất khoảng 10–15 phút. Theo dõi:
+Script build 5 file jar ngay trên máy chủ (trong một container JDK giới hạn RAM, vì upload jar từ laptop quá chậm), rồi khởi động mọi container. Lần đầu mất khoảng 5–10 phút. Theo dõi:
 ```bash
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs -f cloudflared
@@ -110,7 +110,7 @@ Trong app, `ApiUrls` đổi cả ba địa chỉ thành **một**: `https://api.
 
 | Việc | Lệnh (trên máy chủ, trong `~/visionfit-backend`) |
 |---|---|
-| Cập nhật phiên bản mới | `./infra/ec2/deploy.sh` (pull `main`, build lại, khởi động lại những gì thay đổi) |
+| Cập nhật phiên bản mới | `./infra/ec2/deploy.sh` (pull `main`, build jar, khởi động lại những gì thay đổi) |
 | Xem log một service | `docker compose -f docker-compose.prod.yml logs -f --tail 100 meal-service` |
 | Sao lưu database | `docker compose -f docker-compose.prod.yml exec postgres pg_dumpall -U postgres \| gzip > backup-$(date +%F).sql.gz` |
 | RAM còn bao nhiêu | `free -h` và `docker stats --no-stream` |
