@@ -112,7 +112,7 @@ Trong app, `ApiUrls` đổi cả ba địa chỉ thành **một**: `https://api.
 |---|---|
 | Cập nhật phiên bản mới | `./infra/ec2/deploy.sh` (pull `main`, build jar, khởi động lại những gì thay đổi) |
 | Xem log một service | `docker compose -f docker-compose.prod.yml logs -f --tail 100 meal-service` |
-| Sao lưu database | `docker compose -f docker-compose.prod.yml exec postgres pg_dumpall -U postgres \| gzip > backup-$(date +%F).sql.gz` |
+| Sao lưu database | `./infra/ec2/backup.sh <bucket>`: cron chạy mỗi đêm, lên S3 (cách cài ở đầu file script) |
 | RAM còn bao nhiêu | `free -h` và `docker stats --no-stream` |
 
-Chưa làm, nên làm sớm: sao lưu tự động hằng ngày lên S3; giới hạn request theo IP ngay trên Cloudflare (*Security → WAF → Rate limiting rules*); `server.address` cho các service (trong Docker chúng đã không mở cổng ra ngoài, nên chưa cần).
+Chưa làm, nên làm sớm: giới hạn request theo IP ngay trên Cloudflare (*Security → WAF → Rate limiting rules*); `server.address` cho các service (trong Docker chúng đã không mở cổng ra ngoài, nên chưa cần).
