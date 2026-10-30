@@ -3,7 +3,8 @@
 #   crontab -e   and add (server clock is UTC, so 20:00 = 03:00 in Vietnam):
 #   0 20 * * * $HOME/visionfit-backend/infra/ec2/backup.sh <bucket> >> $HOME/backups/backup.log 2>&1
 # Needs aws-cli (sudo snap install aws-cli --classic) and an IAM role on the instance that may
-# s3:PutObject into <bucket>. Local copies older than 7 days are deleted; S3 keeps its own.
+# s3:PutObject into <bucket>. Local copies older than 7 days are deleted; on S3, lifecycle rules
+# expire daily/ after 7 days, weekly/ after 28 and monthly/ after 90 (set them on the bucket once).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 export PATH="/snap/bin:$PATH"   # cron's PATH does not include snap's aws
@@ -14,6 +15,15 @@ mkdir -p "$HOME/backups"
 # Written as .part first: a dump that fails halfway never looks like a good backup.
 docker compose -f docker-compose.prod.yml exec -T postgres pg_dumpall -U postgres | gzip > "$file.part"
 mv "$file.part" "$file"
-aws s3 cp "$file" "s3://$bucket/daily/" --region ap-southeast-2 --no-progress
+# Which retention tier tonight's backup belongs to; the bucket's lifecycle rules expire each folder
+# on their own, so the server never needs to delete. The 1st wins over Sunday: every month keeps one.
+if [ "$(date +%d)" = "01" ]; then
+    tier=monthly
+elif [ "$(date +%u)" = "7" ]; then
+    tier=weekly
+else
+    tier=daily
+fi
+aws s3 cp "$file" "s3://$bucket/$tier/" --region ap-southeast-2 --no-progress
 find "$HOME/backups" -name 'visionfit-*' -mtime +7 -delete
-echo "$(date '+%F %T') ok $(du -h "$file" | cut -f1)"
+echo "$(date '+%F %T') ok $tier $(du -h "$file" | cut -f1)"
