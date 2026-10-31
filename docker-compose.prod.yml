@@ -1,9 +1,9 @@
 # The whole backend on one server, behind a Cloudflare Tunnel. No port is published to the host:
 #   phone -> Cloudflare -> cloudflared -> nginx -> gateway -> identity/profile/meal/analysis -> postgres
-# Needs a .env next to this file (see .env.example). Run:
-#   docker compose -f docker-compose.prod.yml up -d --build
-# Smoke test on a laptop without a tunnel (everything but cloudflared):
-#   docker compose -f docker-compose.prod.yml up -d --build nginx
+# Needs a .env next to this file (see .env.example). The five app images are built and pushed by CI
+# (.github/workflows/ci.yml); IMAGE_TAG picks a commit, latest by default. Run: ./infra/ec2/deploy.sh
+# Smoke test on an ARM laptop without a tunnel (everything but cloudflared):
+#   docker compose -f docker-compose.prod.yml up -d nginx
 
 name: visionfit-prod
 
@@ -62,8 +62,7 @@ services:
 
   identity-service:
     <<: *app
-    build: { context: ., args: { SERVICE: identity-service } }
-    image: visionfit/identity-service
+    image: ghcr.io/diendien1801/visionfit-identity-service:${IMAGE_TAG:-latest}
     environment:
       <<: *app-env
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IDENTITY_DB_NAME}
@@ -77,8 +76,7 @@ services:
 
   profile-service:
     <<: *app
-    build: { context: ., args: { SERVICE: profile-service } }
-    image: visionfit/profile-service
+    image: ghcr.io/diendien1801/visionfit-profile-service:${IMAGE_TAG:-latest}
     environment:
       <<: *app-env
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PROFILE_DB_NAME}
@@ -90,8 +88,7 @@ services:
 
   meal-service:
     <<: *app
-    build: { context: ., args: { SERVICE: meal-service } }
-    image: visionfit/meal-service
+    image: ghcr.io/diendien1801/visionfit-meal-service:${IMAGE_TAG:-latest}
     environment:
       <<: *app-env
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${MEAL_DB_NAME}
@@ -103,8 +100,7 @@ services:
 
   analysis-service:
     <<: *app
-    build: { context: ., args: { SERVICE: analysis-service } }
-    image: visionfit/analysis-service
+    image: ghcr.io/diendien1801/visionfit-analysis-service:${IMAGE_TAG:-latest}
     environment:
       <<: *app-env
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${ANALYSIS_DB_NAME}
@@ -122,8 +118,7 @@ services:
 
   gateway:
     <<: *app
-    build: { context: ., args: { SERVICE: gateway-service } }
-    image: visionfit/gateway-service
+    image: ghcr.io/diendien1801/visionfit-gateway-service:${IMAGE_TAG:-latest}
     environment:
       <<: *app-env
       GATEWAY_PORT: "8080"

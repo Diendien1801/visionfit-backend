@@ -3,7 +3,7 @@
 > Kiến trúc: `điện thoại → https://api.baofit.tech (Cloudflare) → tunnel → cloudflared → nginx → gateway → 4 service → Postgres`, tất cả chạy bằng Docker Compose trên **một** máy EC2. Máy **không mở cổng web nào** ra Internet; chỉ có SSH, và chỉ cho IP của bạn.
 > Phần code (Dockerfile, `docker-compose.prod.yml`, `infra/`) đã có sẵn trong repo và đã chạy thử trên laptop. Tài liệu này là **những việc chỉ chủ tài khoản làm được**: AWS và Cloudflare.
 
-Thời gian ước tính: 45–60 phút, trong đó khoảng 15 phút là chờ build.
+Thời gian ước tính: 45–60 phút, trong đó vài phút là chờ CI build image.
 
 ---
 
@@ -81,12 +81,12 @@ Trong `nano`: `Ctrl+O` rồi `Enter` để lưu, `Ctrl+X` để thoát. Khoá fi
 chmod 600 .env
 ```
 
-## Bước 6. Chạy (10 phút, chủ yếu là chờ build)
+## Bước 6. Chạy (3 phút)
 
 ```bash
 ./infra/ec2/deploy.sh
 ```
-Script build 5 file jar ngay trên máy chủ (trong một container JDK giới hạn RAM, vì upload jar từ laptop quá chậm), rồi khởi động mọi container. Lần đầu mất khoảng 5–10 phút. Theo dõi:
+Máy chủ không build gì: CI (`.github/workflows/ci.yml`) test xong thì đẩy 5 image lên `ghcr.io`, gắn nhãn là 7 ký tự đầu của mã commit. Script kéo đúng image của commit vừa pull rồi khởi động mọi container. Nếu báo `manifest unknown` thì CI của commit đó chưa xong: chờ dấu ✅ trên GitHub rồi chạy lại. Theo dõi:
 ```bash
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs -f cloudflared
@@ -110,7 +110,8 @@ Trong app, `ApiUrls` đổi cả ba địa chỉ thành **một**: `https://api.
 
 | Việc | Lệnh (trên máy chủ, trong `~/visionfit-backend`) |
 |---|---|
-| Cập nhật phiên bản mới | `./infra/ec2/deploy.sh` (pull `main`, build jar, khởi động lại những gì thay đổi) |
+| Cập nhật phiên bản mới | `./infra/ec2/deploy.sh` (pull `main`, kéo image CI đã build cho commit đó, khởi động lại những gì thay đổi) |
+| Quay về bản cũ | `./infra/ec2/deploy.sh 1a2b3c4` (7 ký tự đầu của commit muốn quay về) |
 | Xem log một service | `docker compose -f docker-compose.prod.yml logs -f --tail 100 meal-service` |
 | Sao lưu database | `./infra/ec2/backup.sh <bucket>`: cron chạy mỗi đêm, lên S3 (cách cài ở đầu file script) |
 | RAM còn bao nhiêu | `free -h` và `docker stats --no-stream` |

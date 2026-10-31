@@ -1,13 +1,16 @@
 # On every push, to any branch: build the five services and run every test on a fresh Linux machine.
+# On main, the tested jars also become images on ghcr.io, tagged with the commit; the server pulls them.
 name: CI
 on: push
-# The token GitHub hands this job may only read the repo.
+# The token GitHub hands this job may read the repo and publish images, nothing else.
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build:
+    # ARM like the t4g server: an image built on x86 would not start there (exec format error).
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -15,4 +18,19 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
-      - run: ./gradlew test
+      - run: ./gradlew test bootJar
+      - name: Push images
+        if: github.ref == 'refs/heads/main'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          mkdir -p dist
+          for s in identity-service profile-service meal-service analysis-service gateway-service; do
+            cp "$s/build/libs/$s-0.0.1-SNAPSHOT.jar" "dist/$s.jar"
+            image="ghcr.io/diendien1801/visionfit-$s"
+            docker build --build-arg SERVICE="$s" \
+              --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
+              -t "$image:${GITHUB_SHA::7}" -t "$image:latest" .
+            docker push --all-tags "$image"
+          done

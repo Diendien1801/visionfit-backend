@@ -12,8 +12,8 @@ Kết quả: không mất dữ liệu; push code là tự test, tự deploy, kh�
 
 | Xong | # | Chủ đề | Bài thực hành trên VisionFit | Vì sao cần | Ghi chú |
 |---|---|---|---|---|---|
-| [ ] | 7 | Backup và restore | `pg_dump` hằng ngày lên S3, rồi **thử khôi phục** vào một DB trống | Chưa có backup nào. Backup chưa từng thử khôi phục thì coi như không có | 2026-10-30: backup tự động mỗi đêm lên S3 (cron + IAM role chỉ ghi), đã restore thử bằng tay. Còn: dọn bản cũ, restore thử tự động |
-| [ ] | 1 | CI | GitHub Actions: mỗi lần push hoặc mở PR thì build và chạy toàn bộ test | Hiện không có gì chặn một commit làm hỏng test | |
+| [x] | 7 | Backup và restore | `pg_dump` hằng ngày lên S3, rồi **thử khôi phục** vào một DB trống | Chưa có backup nào. Backup chưa từng thử khôi phục thì coi như không có | 2026-10-30: backup tự động mỗi đêm lên S3 (cron + IAM role chỉ ghi), đã restore thử bằng tay; daily/weekly/monthly + S3 lifecycle; Healthchecks.io báo khi một đêm không chạy. Chưa làm: restore thử tự động |
+| [x] | 1 | CI | GitHub Actions: mỗi lần push hoặc mở PR thì build và chạy toàn bộ test | Hiện không có gì chặn một commit làm hỏng test | 2026-10-31: `.github/workflows/ci.yml` chạy 39 test mỗi lần push. Lần đầu đỏ vì `gradlew` thiếu quyền x (commit từ Windows): CI bắt lỗi mà máy mình che đi |
 | [ ] | 3 | Container registry, versioning image | Build image ở GitHub Actions, đẩy lên GHCR, tag theo commit; EC2 chỉ `pull` | Máy 2 GB không phải build; quay về bản cũ chỉ cần đổi tag | |
 | [ ] | 2 | CD | Merge vào `main` thì tự deploy lên EC2 | Bỏ bước SSH và chạy `deploy.sh` bằng tay | |
 | [ ] | 25 | Log có cấu trúc + request id | Đưa `X-Request-Id` vào MDC của từng service | Lần theo một request qua 5 service | |

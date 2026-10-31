@@ -5,5 +5,5 @@
 *.iml
 .env
 secrets/
-# Jars copied here by infra/ec2/deploy.ps1 for the runtime Dockerfile
+# Jars copied here by CI for the runtime Dockerfile
 dist/
