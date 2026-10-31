@@ -1,8 +1,8 @@
 # Bàn giao buổi học: tiếp tục trên máy khác
 
-> Cập nhật: 2026-10-30 (buổi học trên Mac). File này để **một phiên Claude mới** (trên máy khác) đọc và học tiếp đúng chỗ đang dừng.
+> Cập nhật: 2026-10-31 (buổi học trên Mac). File này để **một phiên Claude mới** (trên máy khác) đọc và học tiếp đúng chỗ đang dừng.
 > **Cách dùng trên máy mới:** `git pull` repo `visionfit-backend`, mở Claude Code trong thư mục repo, rồi nhắn:
-> *"Đọc `docs/session-handoff.md` và `docs/learning-roadmap.md`, rồi tiếp tục dạy tôi chủ đề 7 (Backup) từ bước đang dừng."*
+> *"Đọc `docs/session-handoff.md` và `docs/learning-roadmap.md`, rồi tiếp tục dạy tôi chủ đề 25 (Log + request id)."*
 
 ---
 
@@ -16,11 +16,19 @@
   4. **Phân tích** vì sao, đưa khái niệm chuẩn (bảng so sánh rất hiệu quả).
   5. **Dẫn đi đúng hướng**, làm thực hành.
 - **Không đưa lời giải trước khi người học đề xuất.**
-- **Lệnh terminal:** người học thấy lệnh "khá nâng cao" và muốn tự làm lại được. Mỗi lệnh phải **tách thành từng mảnh** (chương trình, cờ, tham số) và giải thích từng mảnh; đi **từng bước một**, chờ người học nhắn "xong". Người học dùng **PowerShell 5.1** trên Windows: gọi `curl.exe` (không phải `curl`); JSON trong `-d` phải escape `\"`.
+- **Phân việc:** Claude viết code; người học **tự làm** mọi thao tác trên web (AWS, GitHub, Cloudflare) và trên server, tự `git commit`/`push`. Không bao giờ hỏi hay nhận key, mật khẩu, token qua chat.
+- **Việc trên web:** đưa **đường bấm** (thanh tìm kiếm → dịch vụ → menu trái → nút), **không** đưa link thẳng: người học muốn biết mọi thứ nằm ở đâu.
+- **Lệnh terminal:** mỗi lệnh phải **tách thành từng mảnh** (chương trình, cờ, tham số) và giải thích từng mảnh; đi **từng bước một**, chờ người học nhắn "xong". Trên Windows người học dùng **PowerShell 5.1**: gọi `curl.exe` (không phải `curl`); JSON trong `-d` phải escape `\"`.
 - Người học hay hỏi chen ngang: trả lời câu hỏi đó trước, rồi kéo về mạch chính và nhắc đang ở bước nào.
-- Thích **học chủ động**: câu hỏi trước, tranh luận "phương án của bạn / phản biện", bảng so sánh theo từng service, bug thật làm bài tập.
-- **Giải thích dày đặc** (nhiều bảng, code, sơ đồ trong cùng một lượt) làm người học rối ("giải thích gì ko hiểu j hết"). Dùng **một hình ảnh đời thường** rồi vài bước ngắn. Các hình ảnh đã hiệu quả: SSH = bảo vệ cổng (Security Group) + ổ khoá/chìa (public/private key); Security Group = bảo vệ xem biển số xe, IAM = nhân viên quầy xem thẻ; container = thùng container chở hàng; S3 = nhà kho / két sắt; biến môi trường `PATH` = túi đồ / các ngăn kéo để tìm lệnh.
+- **Giải thích dày đặc** (nhiều bảng, code, sơ đồ trong cùng một lượt) làm người học rối. Dùng **một hình ảnh đời thường** rồi vài bước ngắn. Các hình ảnh đã hiệu quả:
+  - SSH = bảo vệ cổng (Security Group) + ổ khoá/chìa (public/private key); Security Group = bảo vệ xem biển số xe, IAM = nhân viên quầy xem thẻ.
+  - Container = thùng container chở hàng; image = bản thiết kế / hộp cơm đóng sẵn; volume = tủ gửi đồ ở quầy lễ tân; S3 = nhà kho / két sắt; `PATH` = các ngăn kéo để tìm lệnh.
+  - CI/CD = nhà máy (GitHub Actions) → kho (GHCR) → tàu (server).
+  - IAM role gắn vào máy = **thẻ nhân viên** máy đang đeo, trên thẻ ghi danh sách quyền; thêm quyền = ghi thêm dòng lên thẻ.
+  - SSM agent = **nhân viên chi nhánh tự gọi về trụ sở** hỏi "có việc không?" (giống `cloudflared`): chỉ gọi ra, nên không mở cổng. SSM document = **phiếu việc in sẵn**.
+  - OIDC = **căn cước công dân** GitHub cấp cho từng job, ghi rõ repo và nhánh.
 - Người học **hay bỏ qua câu hỏi kiểm tra** (nhắn "tiếp"): lượt sau đưa đáp án ngắn rồi đi tiếp, đừng hỏi lại.
+- **Không bày bài demo** cho thứ người học đã trải nghiệm (ví dụ cố tình làm hỏng test để xem CI đỏ): chuyển sang chủ đề tiếp.
 - Người học **hay gõ nhầm máy**: lệnh của server lại chạy trên laptop. Ô `!` trong Claude Code luôn chạy trên laptop. Nhắc nhìn dấu nhắc: `ubuntu@ip-172-31-…` là server.
 
 ## 2. Dự án và hệ thống đang chạy
@@ -31,67 +39,45 @@
 | Repo app (KMP) | `github.com/Diendien1801/BaoFit` |
 | Service | identity 8081 · profile 8082 · meal 8083 · analysis 8084 · gateway 8080 (Spring Boot 4.1.1, Java 21) |
 | Production | `https://api.baofit.tech`, chạy thật |
-| Hạ tầng | AWS EC2 **Sydney (ap-southeast-2), t4g.small** (2 GB RAM + 2 GB swap), Ubuntu 26.04, Free plan (100 USD credit, ~6 tháng) |
-| Đường vào | Điện thoại → Cloudflare → Cloudflare Tunnel (`baofit`) → container `cloudflared` → `nginx:8000` → `gateway:8080` → các service → **một** container Postgres chứa 4 database |
-| Deploy | `docker-compose.prod.yml`; trên server chạy `./infra/ec2/deploy.sh` (build jar trong container JDK rồi `up -d --build`). Hướng dẫn: [`deploy-aws.md`](deploy-aws.md) |
-| SSH | `ssh -i <key> ubuntu@3.26.113.232` (IP **đổi** mỗi lần stop/start máy). **Mỗi máy một key, không có trong git:** Windows dùng file `.pem` tải lúc tạo EC2; Mac dùng `~/.ssh/visionfit_mac` (ed25519, có passphrase, public key đã thêm vào `~/.ssh/authorized_keys` trên server). Security Group cho cổng 22: IP Mac `101.99.41.30/32` + prefix list `ec2-instance-connect` (nút *Connect* trên web). Vào từ mạng mới mà bị `timed out` thì thêm IP đó vào Security Group, hoặc vào bằng nút *Connect* trên web |
-| Backup | Bucket S3 `visionfit-backup-dien-2026` (Sydney, chặn public). IAM role `visionfit-backup-role` gắn vào instance, inline policy `put-backups` **chỉ** cho `s3:PutObject` trên `bucket/*`. `aws-cli` cài bằng snap. Cron của user `ubuntu`: `0 20 * * *` (20:00 UTC = 03:00 giờ VN) chạy [`infra/ec2/backup.sh`](../infra/ec2/backup.sh), log ở `~/backups/backup.log`, bản trên máy giữ 7 ngày |
-| Secret | `.env` chỉ nằm trên server và laptop cũ, **không có trong git** |
+| Hạ tầng | AWS EC2 **Sydney (ap-southeast-2), t4g.small** (ARM, 2 GB RAM + 2 GB swap), Ubuntu 26.04, instance `i-09892524bb422eacd`, tài khoản `796468524979`. Tài khoản loại **giao diện rút gọn** (Free plan, có spend limit): một số tính năng IAM bị khoá. **Đừng** bấm *Activate advanced features* (không đảo ngược, mất spend limit) |
+| Đường vào | Điện thoại → Cloudflare → Cloudflare Tunnel → container `cloudflared` → `nginx:8000` → `gateway:8080` → các service → **một** container Postgres chứa 4 database |
+| CI | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), runner `ubuntu-24.04-arm`: mỗi lần push chạy `./gradlew test bootJar` (39 test, H2) |
+| Image | Chỉ trên `main`: CI build 5 image ARM, đẩy lên `ghcr.io/diendien1801/visionfit-<service>` (public), tag 7 ký tự commit + `latest` |
+| Deploy (CD) | Chỉ trên `main`, sau khi đẩy image: CI gửi SSM document `VisionfitDeploy` ([`infra/ec2/ssm-deploy.yml`](../infra/ec2/ssm-deploy.yml)), agent trên server chạy [`deploy.sh`](../infra/ec2/deploy.sh) bằng user `ubuntu` (`git pull` → `compose pull` → `up -d`, không build), CI in log và báo xanh/đỏ. Bằng tay: `./infra/ec2/deploy.sh`; quay về bản cũ: `./infra/ec2/deploy.sh <7 ký tự commit>`. Hướng dẫn và sơ đồ: [`deploy-aws.md`](deploy-aws.md) Bước 6 và 8 ([`diagrams/cicd-flow.svg`](diagrams/cicd-flow.svg)) |
+| IAM | Role `visionfit-backup-role` **gắn vào instance**: inline `put-backups` (chỉ `s3:PutObject` lên bucket backup) + `AmazonSSMManagedInstanceCore` (cho SSM agent gọi ra SSM). IAM user `github-deploy` (không đăng nhập web): inline `send-deploy` chỉ `ssm:SendCommand` document `VisionfitDeploy` lên đúng instance + `ssm:GetCommandInvocation`; access key nằm trong GitHub Secrets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
+| SSH | `ssh -i <key> ubuntu@3.26.113.232` (IP **đổi** mỗi lần stop/start máy). **Mỗi máy một key, không có trong git:** Windows dùng file `.pem` tải lúc tạo EC2; Mac dùng `~/.ssh/visionfit_mac` (ed25519, có passphrase). Security Group cho cổng 22: IP Mac `101.99.41.30/32` + prefix list `ec2-instance-connect` (nút *Connect* trên web). Vào từ mạng mới mà bị `timed out` thì thêm IP đó vào Security Group, hoặc vào bằng nút *Connect* trên web |
+| Backup | Bucket S3 `visionfit-backup-dien-2026` (Sydney, chặn public). Cron của user `ubuntu`: `0 20 * * *` (03:00 giờ VN) chạy [`infra/ec2/backup.sh`](../infra/ec2/backup.sh): `pg_dumpall` nén gzip, lên `monthly/` (ngày 1), `weekly/` (Chủ nhật) hoặc `daily/`; S3 lifecycle xoá sau 90/28/7 ngày; ping Healthchecks.io (`BACKUP_HEALTHCHECK_URL` trong `.env`) để có email khi một đêm không chạy. Log ở `~/backups/backup.log` |
+| Secret | `.env` chỉ nằm trên server và laptop cũ, **không có trong git**, không nằm trong image: container đọc lúc khởi động |
 
-Máy laptop cũ có vài đặc thù **không mang sang máy mới**: cổng 8080 bị `PEMHTTPD` chiếm nên gateway chạy 8090; nginx cài ở `C:\nginx`. Trên máy mới không cần quan tâm.
+Máy laptop Windows cũ có vài đặc thù **không mang sang máy mới**: cổng 8080 bị `PEMHTTPD` chiếm nên gateway chạy 8090; nginx cài ở `C:\nginx`.
 
-## 3. Đã học (tới 2026-10-29)
+## 3. Đã học
 
 - Xây 5 service, idempotency, race condition, `@EntityGraph`, job bất đồng bộ, gateway, filter, rate limit, nginx, Cloudflare, deploy EC2. Tài liệu: [`backend-deep-dive.md`](backend-deep-dive.md), [`edge-stack-quiz.md`](edge-stack-quiz.md).
-- **Bài thiết kế DB cho auth** (kiểu phỏng vấn), các lỗi đã sửa: nhảy vào vẽ bảng trước khi hỏi yêu cầu; Base64 không phải băm, băm khác mã hoá; `UNIQUE` của Postgres phân biệt hoa thường (code đổi chữ thường + `CHECK (email = lower(email))`); `UNIQUE (a, b)` khác `UNIQUE (a)` + `UNIQUE (b)`; `updated_at` không thay được `password_changed_at` (một cột một ý nghĩa); `revoked_at` khác `expires_at`; partial unique index `UNIQUE (account_id) WHERE revoked_at IS NULL` cho luật "một thiết bị"; cú pháp `CHECK ((a IS NULL) = (b IS NULL))`.
+- **Bài thiết kế DB cho auth** (kiểu phỏng vấn): băm khác mã hoá, `UNIQUE` phân biệt hoa thường, `UNIQUE (a, b)` khác `UNIQUE (a)` + `UNIQUE (b)`, một cột một ý nghĩa, `revoked_at` khác `expires_at`, partial unique index, `CHECK ((a IS NULL) = (b IS NULL))`.
 - Đã lập **lộ trình 34 chủ đề**, 5 giai đoạn: [`learning-roadmap.md`](learning-roadmap.md).
-- **Buổi 2026-10-30 (Mac):** SSH (2 lớp: Security Group chặn theo IP, key chặn theo danh tính; `timed out` khác `Permission denied`; `authorized_keys`; passphrase); Security Group khác IAM; EC2 (dịch vụ) / instance (máy ảo) / server (vai trò, và cũng là chương trình); container khác máy ảo (chung kernel), image, volume; S3 là object storage (khác Firestore); IAM role, policy, quyền tối thiểu; `pg_dumpall` khác `pg_dump`; đọc cấu trúc file dump (CREATE TABLE → COPY → constraint/index); cron (5 ô thời gian, đồng hồ UTC, `PATH` rút gọn, chuyển hướng log).
+- **2026-10-30:** SSH (Security Group chặn theo IP, key chặn theo danh tính; `timed out` khác `Permission denied`); Security Group khác IAM; EC2 / instance / server; container khác máy ảo, image, volume; S3 là object storage; IAM role, policy, quyền tối thiểu; `pg_dumpall` khác `pg_dump`; cron (5 ô thời gian, đồng hồ UTC, `PATH` rút gọn, chuyển hướng log).
+- **Chủ đề 7 Backup (xong 2026-10-30):** 3-2-1, RPO/RTO, restore thử bằng tay, chia tầng daily/weekly/monthly + S3 lifecycle (server không cần quyền xoá), Healthchecks.io.
+- **2026-10-31, chủ đề 1 CI:** GitHub Actions chạy test trên máy sạch; lần đầu đỏ vì `gradlew` commit từ Windows thiếu quyền chạy (`chmod +x`).
+- **2026-10-31, chủ đề 3 Registry:** jar, JVM/JRE/JDK, bytecode; image build trên x86 không chạy được trên máy ARM (`exec format error`) nên CI dùng runner ARM; tag theo commit để quay về bản cũ; secret nạp lúc chạy chứ không nằm trong image; 502 Bad Gateway = người đứng giữa (Cloudflare, nginx, gateway) không gọi được người phía sau, ví dụ lúc JVM đang khởi động lại sau deploy.
+- **2026-10-31, chủ đề 2 CD:** SSM (agent chỉ gọi ra; role của máy cần `AmazonSSMManagedInstanceCore`; document giới hạn đúng một việc; Run Command); OIDC (căn cước ngắn hạn, AWS tin chữ ký GitHub, trust policy chỉ nhận đúng repo + nhánh); tài khoản giao diện rút gọn khoá OIDC nên dùng IAM user + access key, bù lại bằng quyền hẹp.
 
-## 4. Đang học: chủ đề 7, Backup và restore
+## 4. ĐANG DỪNG Ở ĐÂY
 
-### Đã xong
-1. **Vấn đề:** dữ liệu chỉ nằm ở một Docker volume trên EC2, không có bản sao. 6 tình huống mất dữ liệu: `docker compose down -v`, migration `DELETE` thiếu `WHERE`, máy/ổ hỏng, hết credit nên tài khoản bị khoá, ransomware, bug âm thầm ghi sai nhiều ngày.
-2. **Người học đề xuất** (copy thư mục volume, lưu về DB local, 1 ngày 1 lần, không biết giữ bao nhiêu bản, không biết kiểm tra) và **đã được sửa**.
-3. **Chép file khác `pg_dump`:** chép file là copy **cả** `$PGDATA` (`/var/lib/postgresql/18/docker`; tên `docker` chỉ là tên thư mục image đặt), phải dừng Postgres, cùng phiên bản và cùng kiến trúc; copy riêng `base/<số>` thì vô dụng (thiếu `global/`, `pg_xact/`, `pg_wal/`, `pg_control`). `pg_dump` xuất ra file SQL đọc được, chạy được khi DB đang chạy.
-4. **Thực hành local đã làm xong:** tạo DB `backup_lab` trong container `identity-db`, xem file nhị phân của bảng bằng `od -c` (hiểu checkpoint: dữ liệu nằm trong RAM trước), `pg_dump` ra SQL, `DELETE` sạch, `DROP`/`CREATE DATABASE`, khôi phục bằng `psql -f`, dữ liệu quay lại.
-5. **Kế hoạch đã chốt cho VisionFit:**
+Giai đoạn 1 đã xong 4/5 chủ đề: **Backup (7) → CI (1) → Registry (3) → CD (2)**. Push lên `main` giờ tự test, tự build image, tự deploy; lần deploy tự động đầu tiên đã **Success** (2026-10-31).
 
-| Câu hỏi | Đáp án | Khái niệm |
-|---|---|---|
-| Sao lưu cái gì | `pg_dumpall` (4 DB + user), nén gzip. `.env` giữ riêng, có bảo mật | |
-| Lưu ở đâu | Trên máy + S3 + thỉnh thoảng một bản ngoài AWS | Quy tắc 3-2-1 |
-| Bao lâu | Mỗi ngày | RPO = mất tối đa bao nhiêu dữ liệu |
-| Giữ bao nhiêu | 7 ngày + 4 tuần + 3 tháng | Giữ lâu hơn thời gian một bug nằm im |
-| Kiểm tra | Khôi phục thử tự động mỗi tuần | RTO; "backup chưa thử khôi phục thì không phải backup" |
-
-6. **Hai quyết định đã chốt (2026-10-30):**
-   - **Ai chạy backup:** `cron` trên EC2. Người học trả lời: "mang theo khi dựng máy mới" đúng một nửa (cron có sẵn, nhưng dòng hẹn giờ không nằm trong git); "dễ thấy còn sống" đúng (container có `ps`/`logs`, cron im lặng); "gọi Postgres" và "dùng thẻ IAM" chưa biết, đã giải thích (`docker compose exec` chui vào container nên không cần mật khẩu; `aws-cli` trên máy dùng được role ngay). Vá điểm yếu của cron: script nằm trong git, ghi dòng cron ở đầu script, chuyển hướng ra file log.
-   - **Quyền ghi S3:** IAM role chỉ `s3:PutObject`. Đáp án này được **đưa thẳng, người học chưa tự lập luận**: buổi sau hỏi lại để ôn "vì sao role tốt hơn access key trong `.env`" và "vì sao không cho quyền xoá".
-7. **Backup tay trên server → `scp` về Mac → restore thử** vào container `postgres:18-alpine` trống trên Mac: 4 DB về đủ, đúng chủ, chỉ có lỗi `role "postgres" already exists` (bình thường).
-8. **S3 + IAM:** đã tạo bucket và role, gắn role vào instance. `aws sts get-caller-identity` ra `assumed-role/visionfit-backup-role/i-…`; upload thử vào `test/` thành công.
-9. **Tự động:** [`infra/ec2/backup.sh`](../infra/ec2/backup.sh) và cron 20:00 UTC. Chạy tay trên server thành công (`daily/visionfit-2026-10-30-0922.sql.gz`). Chạy thử trong môi trường giống cron (`env -i HOME=$HOME PATH=/usr/bin:/bin ./infra/ec2/backup.sh <bucket>`): đi tới bước upload thì báo `NoSuchBucket` vì gõ thừa chữ `v` trong tên bucket. Phần quan trọng (tìm được `docker` và `aws` khi `PATH` rút gọn) đã đạt.
-
-### ĐANG DỪNG Ở ĐÂY
-1. **Mở đầu buổi sau:** trên server chạy `cat ~/backups/backup.log`. Phải có dòng `… ok …` từ lần cron tự chạy đầu tiên (20:00 UTC ngày 2026-10-30, tức 03:00 VN ngày 31), và trên S3 console phải có file mới trong `daily/`. Nếu lỗi thì đọc log cùng người học.
-2. Chưa thấy tận mắt: `aws s3 ls s3://visionfit-backup-dien-2026 --region ap-southeast-2` trên server phải ra `AccessDenied`. Lần trước người học quên thay `TEN-BUCKET` nên ra `NoSuchBucket`.
-3. **Bước 9, dọn bản cũ.** Theo vòng dạy: nêu vấn đề (mọi bản đều nằm trong `daily/` và được giữ mãi; server không có quyền xoá), rồi hỏi người học sẽ làm luật 7 ngày + 4 tuần + 3 tháng thế nào. *Hướng đúng (đừng nói trước):* script chọn thư mục theo ngày (`monthly/` vào ngày 1, `weekly/` vào Chủ nhật, còn lại `daily/`), và S3 Lifecycle rule xoá theo từng thư mục sau 7/28/90 ngày. S3 tự xoá nên máy vẫn không cần quyền xoá.
-
-### Các bước còn lại của chủ đề 7
-| Bước | Việc |
-|---|---|
-| 7 | ✅ Tạo bucket S3; cấp quyền **chỉ ghi, không xoá** cho máy |
-| 8 | ✅ Viết script sao lưu, chạy tự động mỗi ngày |
-| 9 | Dọn bản cũ theo luật 7 ngày + 4 tuần + 3 tháng |
-| 10 | Khôi phục thử tự động mỗi tuần, báo lỗi nếu hỏng |
-| 11 | Đánh dấu `[x]` chủ đề 7 trong `learning-roadmap.md` |
-
-Sau chủ đề 7, theo lộ trình giai đoạn 1: **CI (1) → Registry (3) → CD (2) → Log + request id (25)**.
+1. **Câu ôn mở đầu buổi sau** (người học chưa trả lời): *"Server dùng role gắn vào máy, còn GitHub phải dùng access key. Vì sao server không cần key mà GitHub lại cần?"* Đáp án: server nằm trong AWS nên đeo được role, AWS tự cấp key tạm và tự đổi; GitHub ở ngoài AWS nên không đeo được role của EC2. OIDC lẽ ra thay được key, nhưng tài khoản này khoá nó, nên dùng key vĩnh viễn và giới hạn quyền tới mức lộ ra cũng chỉ deploy lại được `main`.
+2. **Chủ đề tiếp theo: 25, Log có cấu trúc + request id.** Theo vòng dạy: nêu vấn đề trước (một request lỗi đi qua gateway → service; log 5 container nằm riêng, không biết dòng nào thuộc request nào), rồi hỏi người học sẽ lần theo một request thế nào. *Hướng đúng (đừng nói trước):* gateway gắn header `X-Request-Id` (hoặc giữ lại nếu đã có), mỗi service đọc header đó đưa vào MDC để mọi dòng log có id; trả id về client để báo lỗi kèm id.
 
 ## 5. Việc còn treo (không gấp)
 
+- Chủ đề 7: **chưa làm khôi phục thử tự động** mỗi tuần. Chưa thấy tận mắt `aws s3 ls s3://visionfit-backup-dien-2026 --region ap-southeast-2` trên server ra `AccessDenied` (server chỉ được ghi).
+- Chưa thử **quay về bản cũ** (`./infra/ec2/deploy.sh <tag>`): giờ đã có hơn một bản image trên GHCR nên thử được.
+- Dọn đồ của cách deploy cũ trên server: `docker volume rm visionfit-gradle && rm -rf ~/visionfit-backend/dist`.
+- Hai push liên tiếp quá nhanh: lần deploy đầu có thể đỏ `manifest unknown` (server kéo code mới hơn image đã build). Lần sau tự sửa.
 - App (`ApiConfig` trong repo BaoFit) chưa trỏ về `https://api.baofit.tech`; repo app chưa có phần nối analysis-service.
 - Cloudflare: nên bật *SSL/TLS → Edge Certificates → Always Use HTTPS*.
 - Bucket còn thư mục `test/` (file upload thử). Xoá trên console khi tiện; server không có quyền xoá.
 - Trên Mac còn `~/Downloads/visionfit-2026-10-30-0656.sql` và `.sql.gz` (dữ liệu thật): giữ làm "bản ngoài AWS" theo 3-2-1 hoặc xoá. Không đưa vào git.
-- Lúc SSH vào, server báo RAM 67% và swap 46%: tư liệu cho chủ đề Metrics và Cảnh báo.
+- Server báo RAM 67% và swap 46%: tư liệu cho chủ đề Metrics và Cảnh báo.
 - Bug đã biết, dùng làm bài tập: xem bảng cuối [`backend-deep-dive.md`](backend-deep-dive.md) (6.A, 7.B, 7.C, 9.A, 10.A…).

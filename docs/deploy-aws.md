@@ -106,6 +106,10 @@ Trong app, `ApiUrls` đổi cả ba địa chỉ thành **một**: `https://api.
 
 ## Bước 8. Tự deploy khi push lên `main` (15 phút)
 
+![Sơ đồ: push lên main → GitHub Actions → GHCR và AWS SSM → EC2, cùng hai thẻ IAM và lý do không dùng OIDC](diagrams/cicd-flow.svg)
+
+*(Sinh từ [`diagrams/cicd-flow.py`](diagrams/cicd-flow.py) bằng skill `arch-diagram`; sửa script rồi chạy lại, đừng sửa SVG.)*
+
 GitHub không SSH vào máy. Nó nhờ AWS SSM: agent trên máy tự gọi ra SSM để nhận việc, nên không phải mở cổng nào. Tài khoản AWS dạng giao diện rút gọn không cho thêm OIDC provider, nên GitHub dùng key của một IAM user chỉ có đúng một quyền.
 
 1. **Máy được nói chuyện với SSM**: IAM → Roles → role đang gắn vào máy (`visionfit-backup-role`) → *Add permissions* → *Attach policies* → `AmazonSSMManagedInstanceCore`. Trên máy chạy `sudo snap restart amazon-ssm-agent`. Máy phải hiện *Online* trong Systems Manager → Fleet Manager.
