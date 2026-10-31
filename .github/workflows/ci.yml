@@ -1,0 +1,18 @@
+# On every push, to any branch: build the five services and run every test on a fresh Linux machine.
+name: CI
+on: push
+# The token GitHub hands this job may only read the repo.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: ./gradlew test
