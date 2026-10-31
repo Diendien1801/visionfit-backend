@@ -1,0 +1,12 @@
+# SSM Command document "VisionfitDeploy": the only command the GitHub deploy role may send to the server.
+# Created by hand: Systems Manager → Documents → Create document → Command or Session, format YAML.
+schemaVersion: "2.2"
+description: Pull the latest main and restart VisionFit with the images CI built.
+mainSteps:
+  - action: aws:runShellScript
+    name: deploy
+    inputs:
+      timeoutSeconds: 600
+      runCommand:
+        # The agent runs as root; the repo and Docker belong to ubuntu.
+        - sudo -iu ubuntu /home/ubuntu/visionfit-backend/infra/ec2/deploy.sh

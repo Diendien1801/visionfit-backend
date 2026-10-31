@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Update the running backend to the latest main. Run on the server, from the repo folder:
+# Update the running backend to the latest main. CI runs it after every push to main, through the SSM
+# document in ssm-deploy.yml. By hand, on the server, from the repo folder:
 #   ./infra/ec2/deploy.sh            the images CI built for the commit just pulled
 #   ./infra/ec2/deploy.sh 1a2b3c4    the images of an older commit (rollback; first 7 characters)
 # Nothing is built here: CI pushes the images to ghcr.io once the tests pass on main. If CI has not

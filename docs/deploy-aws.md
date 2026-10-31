@@ -104,13 +104,24 @@ Dòng đầu trả `{"status":"UP"}`, dòng sau trả `201` kèm token: **backen
 
 Trong app, `ApiUrls` đổi cả ba địa chỉ thành **một**: `https://api.baofit.tech/`. Gateway tự chia về đúng service.
 
+## Bước 8. Tự deploy khi push lên `main` (15 phút)
+
+GitHub không SSH vào máy. Nó nhờ AWS SSM: agent trên máy tự gọi ra SSM để nhận việc, nên không phải mở cổng nào. Tài khoản AWS dạng giao diện rút gọn không cho thêm OIDC provider, nên GitHub dùng key của một IAM user chỉ có đúng một quyền.
+
+1. **Máy được nói chuyện với SSM**: IAM → Roles → role đang gắn vào máy (`visionfit-backup-role`) → *Add permissions* → *Attach policies* → `AmazonSSMManagedInstanceCore`. Trên máy chạy `sudo snap restart amazon-ssm-agent`. Máy phải hiện *Online* trong Systems Manager → Fleet Manager.
+2. **Phiếu việc duy nhất**: Systems Manager → Documents → *Create document* → *Command or Session*, tên `VisionfitDeploy`, YAML, dán `infra/ec2/ssm-deploy.yml`.
+3. **IAM user `github-deploy`**: không cho đăng nhập web; inline policy `send-deploy` chỉ có `ssm:SendCommand` trên document `VisionfitDeploy` và đúng instance của máy, cộng `ssm:GetCommandInvocation` để đọc kết quả. Tạo access key loại *Third-party service*.
+4. **GitHub**: repo → Settings → Secrets and variables → Actions → hai secret `AWS_ACCESS_KEY_ID` và `AWS_SECRET_ACCESS_KEY`.
+
+Bước *Deploy* trong `.github/workflows/ci.yml` gửi phiếu, chờ kết quả rồi in log của `deploy.sh`. Máy mới thì sửa ID instance ở đó và trong policy.
+
 ---
 
 ## Vận hành
 
 | Việc | Lệnh (trên máy chủ, trong `~/visionfit-backend`) |
 |---|---|
-| Cập nhật phiên bản mới | `./infra/ec2/deploy.sh` (pull `main`, kéo image CI đã build cho commit đó, khởi động lại những gì thay đổi) |
+| Cập nhật phiên bản mới | Tự động: push lên `main` là CI test, đẩy image rồi bảo server chạy `deploy.sh` qua SSM (cài đặt ở Bước 8). Bằng tay: `./infra/ec2/deploy.sh` |
 | Quay về bản cũ | `./infra/ec2/deploy.sh 1a2b3c4` (7 ký tự đầu của commit muốn quay về) |
 | Xem log một service | `docker compose -f docker-compose.prod.yml logs -f --tail 100 meal-service` |
 | Sao lưu database | `./infra/ec2/backup.sh <bucket>`: cron chạy mỗi đêm, lên S3 (cách cài ở đầu file script) |

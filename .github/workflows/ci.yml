@@ -1,5 +1,6 @@
 # On every push, to any branch: build the five services and run every test on a fresh Linux machine.
-# On main, the tested jars also become images on ghcr.io, tagged with the commit; the server pulls them.
+# On main, the tested jars also become images on ghcr.io, tagged with the commit, and the server is told
+# through AWS SSM to pull them and restart (infra/ec2/deploy.sh). No SSH, no open port.
 name: CI
 on: push
 # The token GitHub hands this job may read the repo and publish images, nothing else.
@@ -34,3 +35,25 @@ jobs:
               -t "$image:${GITHUB_SHA::7}" -t "$image:latest" .
             docker push --all-tags "$image"
           done
+      - name: Deploy
+        if: github.ref == 'refs/heads/main'
+        # IAM user github-deploy may only send the VisionfitDeploy document (infra/ec2/ssm-deploy.yml) to this server.
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-southeast-2
+          SERVER: i-09892524bb422eacd
+        run: |
+          id=$(aws ssm send-command --document-name VisionfitDeploy --instance-ids "$SERVER" \
+            --query Command.CommandId --output text)
+          ask() { aws ssm get-command-invocation --command-id "$id" --instance-id "$SERVER" --output text --query "$1"; }
+          # "aws ssm wait" gives up after 100 s, shorter than a slow deploy; poll for up to 5 minutes instead.
+          for _ in $(seq 60); do
+            sleep 5
+            status=$(ask Status 2>/dev/null) || continue
+            case "$status" in Pending|InProgress|Delayed) ;; *) break ;; esac
+          done
+          ask StandardOutputContent
+          ask StandardErrorContent
+          echo "== Deploy: $status"
+          test "$status" = Success
