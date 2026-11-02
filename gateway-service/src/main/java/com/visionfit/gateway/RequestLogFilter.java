@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.cloud.gateway.server.mvc.common.MvcUtils;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -39,16 +40,19 @@ class RequestLogFilter extends OncePerRequestFilter {
         // Always a new id: one sent by the caller could be faked or break the log line.
         String id = UUID.randomUUID().toString();
         response.setHeader(REQUEST_ID, id);
+        // Every gateway log line of this request starts with the id (logging.pattern.correlation).
+        MDC.put("requestId", id);
         long start = System.nanoTime();
         try {
             chain.doFilter(new WithRequestId(request, id), response);
         } finally {
             // Route and target stay empty when nothing was forwarded: no matching route, or rate limited.
-            log.info("{} {} -> {} {} {} in {} ms [id={}, client={}]",
+            log.info("{} {} -> {} {} {} in {} ms [client={}]",
                     request.getMethod(), request.getRequestURI(),
                     Objects.requireNonNullElse(request.getAttribute(MvcUtils.GATEWAY_ROUTE_ID_ATTR), "-"),
                     Objects.requireNonNullElse(request.getAttribute(MvcUtils.GATEWAY_REQUEST_URL_ATTR), "-"),
-                    response.getStatus(), (System.nanoTime() - start) / 1_000_000, id, request.getRemoteAddr());
+                    response.getStatus(), (System.nanoTime() - start) / 1_000_000, request.getRemoteAddr());
+            MDC.remove("requestId");
         }
     }
 

@@ -135,12 +135,14 @@ public class AnalysisService {
         long calculationStart = System.nanoTime();
         List<Detection> detections = toDetections(dishes);
         if (detections.isEmpty()) {
+            log.info("Analysis {}: no food in the photo", jobId);
             update(jobId, job -> job.fail(Failure.NO_FOOD_DETECTED, recognitionMs));
             return;
         }
         update(jobId, job -> job.recognized(detections, recognitionMs));
         long calculationMs = millisSince(calculationStart);
         update(jobId, job -> job.complete(calculationMs));
+        log.info("Analysis {}: {} dishes in {} ms", jobId, detections.size(), recognitionMs + calculationMs);
     }
 
     private void update(UUID jobId, Consumer<AnalysisJob> change) {
