@@ -119,6 +119,35 @@ GitHub không SSH vào máy. Nó nhờ AWS SSM: agent trên máy tự gọi ra S
 
 Bước *Deploy* trong `.github/workflows/ci.yml` gửi phiếu, chờ kết quả rồi in log của `deploy.sh`. Máy mới thì sửa ID instance ở đó và trong policy.
 
+## Bước 9. Log tập trung trên CloudWatch (10 phút)
+
+Docker gửi output của cả 8 container lên CloudWatch Logs (driver `awslogs`, khối `x-logging` trong `docker-compose.prod.yml`). Log còn lại sau mỗi lần deploy thay container, và tìm được trên web mà không cần SSH. Driver đăng nhập bằng role của máy, không có key nào.
+
+**Làm hai việc dưới đây trước khi deploy bản compose có `awslogs`.** Nếu thiếu log group hoặc thiếu quyền, container không khởi động được và API sập.
+
+1. **Log group**: CloudWatch → Logs → Log groups → *Create log group*.
+   - Tên: `visionfit-prod`.
+   - *Retention*: 1 month.
+   - *Log class*: Standard.
+2. **Quyền ghi log**: IAM → Roles → `visionfit-backup-role` → *Add permissions* → *Create inline policy*.
+   - Tên policy: `write-logs`.
+   - Action: `logs:CreateLogStream` và `logs:PutLogEvents`.
+   - Resource: `arn:aws:logs:ap-southeast-2:<account>:log-group:visionfit-prod:*`.
+
+Sau khi deploy, trong `visionfit-prod` có một log stream cho mỗi container, ví dụ `visionfit-prod-meal-service-1`.
+
+**Tìm một request**: CloudWatch → Logs → *Logs Insights* → chọn log group `visionfit-prod`, chạy:
+
+```
+fields @timestamp, @logStream, @message
+| filter @message like "<X-Request-Id>"
+| sort @timestamp asc
+```
+
+Stack trace của Java nằm chung một event với dòng `ERROR … [req=…]` phía trên nó (tuỳ chọn `awslogs-datetime-format` trong khối `x-app`), nên lọc theo id là thấy luôn exception. Thiếu tuỳ chọn này thì mỗi dòng stack trace là một event không mang mã: xem [`cloudwatch-stacktrace-lab.md`](cloudwatch-stacktrace-lab.md).
+
+Free tier 5 GB mỗi tháng, gồm log gửi lên, log lưu trữ và dữ liệu Logs Insights quét qua.
+
 ---
 
 ## Vận hành
@@ -127,7 +156,7 @@ Bước *Deploy* trong `.github/workflows/ci.yml` gửi phiếu, chờ kết qu�
 |---|---|
 | Cập nhật phiên bản mới | Tự động: push lên `main` là CI test, đẩy image rồi bảo server chạy `deploy.sh` qua SSM (cài đặt ở Bước 8). Bằng tay: `./infra/ec2/deploy.sh` |
 | Quay về bản cũ | `./infra/ec2/deploy.sh 1a2b3c4` (7 ký tự đầu của commit muốn quay về) |
-| Xem log một service | `docker compose -f docker-compose.prod.yml logs -f --tail 100 meal-service` |
+| Xem log | Trên web: CloudWatch → Logs Insights, log group `visionfit-prod` (Bước 9). Trên máy vẫn dùng được `docker compose -f docker-compose.prod.yml logs -f --tail 100 meal-service`: Docker giữ bản sao 100 MB mới nhất của mỗi container, mất khi container bị thay lúc deploy |
 | Sao lưu database | `./infra/ec2/backup.sh <bucket>`: cron chạy mỗi đêm, lên S3 (cách cài ở đầu file script) |
 | RAM còn bao nhiêu | `free -h` và `docker stats --no-stream` |
 

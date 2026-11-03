@@ -13,7 +13,7 @@ name: visionfit-prod
 # Docker keeps a local copy of the last 100 MB per container.
 x-logging: &logging
   driver: awslogs
-  options:
+  options: &logging-options
     awslogs-region: ap-southeast-2
     awslogs-group: visionfit-prod
     tag: "{{.Name}}"
@@ -23,7 +23,14 @@ x-logging: &logging
 x-app: &app
   restart: unless-stopped
   networks: [backend]
-  logging: *logging
+  logging:
+    <<: *logging
+    options:
+      <<: *logging-options
+      # A Spring Boot line starts with its timestamp; the stack trace lines below it don't. Without this, each
+      # line of a stack trace is a separate CloudWatch event without the [req=…] tag, so a search by request id
+      # finds the ERROR line but not the exception.
+      awslogs-datetime-format: "%Y-%m-%dT%H:%M:%S"
   # Sized for a 2 GB server with 2 GB swap: the JVM takes 60% of its container limit as heap, the
   # serial collector keeps the rest small, and an OOM restarts the container instead of hanging it.
   environment: &app-env
