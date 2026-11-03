@@ -7,12 +7,23 @@
 
 name: visionfit-prod
 
+# Every container's output goes to CloudWatch Logs (log group visionfit-prod, one stream per container), so
+# logs outlive the containers each deploy replaces and are searched from the AWS console, without SSH.
+# Docker signs in with the server's instance role (policy write-logs). `docker compose logs` still works:
+# Docker keeps a local copy of the last 100 MB per container.
+x-logging: &logging
+  driver: awslogs
+  options:
+    awslogs-region: ap-southeast-2
+    awslogs-group: visionfit-prod
+    tag: "{{.Name}}"
+    # The default (blocking) stalls the app's log writes while CloudWatch is unreachable: drop lines instead.
+    mode: non-blocking
+
 x-app: &app
   restart: unless-stopped
   networks: [backend]
-  logging:
-    driver: json-file
-    options: { max-size: "20m", max-file: "5" }
+  logging: *logging
   # Sized for a 2 GB server with 2 GB swap: the JVM takes 60% of its container limit as heap, the
   # serial collector keeps the rest small, and an OOM restarts the container instead of hanging it.
   environment: &app-env
@@ -52,9 +63,7 @@ services:
       timeout: 3s
       retries: 20
       start_period: 15s
-    logging:
-      driver: json-file
-      options: { max-size: "20m", max-file: "5" }
+    logging: *logging
     deploy:
       resources:
         limits:
@@ -142,9 +151,7 @@ services:
     volumes:
       - ./infra/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
     depends_on: [gateway]
-    logging:
-      driver: json-file
-      options: { max-size: "20m", max-file: "5" }
+    logging: *logging
 
   cloudflared:
     image: cloudflare/cloudflared:2026.10.1
@@ -155,9 +162,7 @@ services:
       # From the Cloudflare dashboard: Zero Trust > Networks > Tunnels > your tunnel > token.
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on: [nginx]
-    logging:
-      driver: json-file
-      options: { max-size: "20m", max-file: "5" }
+    logging: *logging
 
 volumes:
   postgres-data:
