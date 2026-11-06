@@ -85,11 +85,36 @@ services:
       retries: 10
       start_period: 10s
 
+  # Message broker: identity-service publishes account events, the other services consume them.
+  # Management UI on http://localhost:15672 (guest / guest unless RABBITMQ_USER/RABBITMQ_PASSWORD are set).
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: rabbitmq
+    # RabbitMQ stores its data under the host name: a fixed one finds the same queues after a restart.
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - visionfit-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
 volumes:
   identity-db-data:
   profile-db-data:
   meal-db-data:
   analysis-db-data:
+  rabbitmq-data:
 
 networks:
   visionfit-net:

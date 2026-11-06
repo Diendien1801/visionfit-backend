@@ -40,6 +40,12 @@ x-app: &app
       limits:
         memory: 400m
 
+# How the four services that publish or consume account events reach RabbitMQ.
+x-rabbit-env: &rabbit-env
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_USER: visionfit
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?missing in .env}
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -80,7 +86,7 @@ services:
     <<: *app
     image: ghcr.io/diendien1801/visionfit-identity-service:${IMAGE_TAG:-latest}
     environment:
-      <<: *app-env
+      <<: [*app-env, *rabbit-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IDENTITY_DB_NAME}
       IDENTITY_DB_USER: ${IDENTITY_DB_USER}
       IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
@@ -89,36 +95,39 @@ services:
       JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
 
   profile-service:
     <<: *app
     image: ghcr.io/diendien1801/visionfit-profile-service:${IMAGE_TAG:-latest}
     environment:
-      <<: *app-env
+      <<: [*app-env, *rabbit-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${PROFILE_DB_NAME}
       PROFILE_DB_USER: ${PROFILE_DB_USER}
       PROFILE_DB_PASSWORD: ${PROFILE_DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
 
   meal-service:
     <<: *app
     image: ghcr.io/diendien1801/visionfit-meal-service:${IMAGE_TAG:-latest}
     environment:
-      <<: *app-env
+      <<: [*app-env, *rabbit-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${MEAL_DB_NAME}
       MEAL_DB_USER: ${MEAL_DB_USER}
       MEAL_DB_PASSWORD: ${MEAL_DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
 
   analysis-service:
     <<: *app
     image: ghcr.io/diendien1801/visionfit-analysis-service:${IMAGE_TAG:-latest}
     environment:
-      <<: *app-env
+      <<: [*app-env, *rabbit-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${ANALYSIS_DB_NAME}
       ANALYSIS_DB_USER: ${ANALYSIS_DB_USER}
       ANALYSIS_DB_PASSWORD: ${ANALYSIS_DB_PASSWORD}
@@ -131,6 +140,31 @@ services:
           memory: 512m
     depends_on:
       postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  # Account events between the services. Durable queues survive a restart on the volume; the fixed
+  # host name matters, since RabbitMQ keeps its data in a folder named after it.
+  rabbitmq:
+    image: rabbitmq:4.1-alpine
+    hostname: rabbitmq
+    restart: unless-stopped
+    networks: [backend]
+    environment:
+      RABBITMQ_DEFAULT_USER: visionfit
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?missing in .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   gateway:
     <<: *app
@@ -173,6 +207,7 @@ services:
 
 volumes:
   postgres-data:
+  rabbitmq-data:
 
 networks:
   backend:

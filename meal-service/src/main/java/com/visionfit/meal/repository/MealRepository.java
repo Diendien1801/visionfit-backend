@@ -3,7 +3,9 @@ package com.visionfit.meal.repository;
 import com.visionfit.meal.domain.Meal;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,4 +34,10 @@ public interface MealRepository extends JpaRepository<Meal, UUID> {
     /** Only the times, newest first: the streak needs which days have a meal, not the meals. */
     @Query("select m.loggedAt from Meal m where m.userId = :userId and m.loggedAt >= :start and m.loggedAt < :end order by m.loggedAt desc")
     List<LocalDateTime> findLoggedTimesBetween(UUID userId, LocalDateTime start, LocalDateTime end);
+
+    /** One statement for all of a user's meals; their items go with them (ON DELETE CASCADE). */
+    @Transactional
+    @Modifying
+    @Query("delete from Meal m where m.userId = :userId")
+    int deleteByUserId(UUID userId);
 }
